@@ -80,7 +80,7 @@ PCNN supports a few popular model architectures in arch.c. The model should be c
  - EDSR
 
 ### How to build
-1. In order to use Intel MKL related environment variables, run the MKL script first, for example
+1. Run the mklvar script first to set the MKL-related environment variables. We assume `MKLROOT` variable is set appropriately.
  ```
  source $HOME/intel/mkl/bin/mklvar.sh intel64
  ```
