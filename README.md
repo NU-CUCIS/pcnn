@@ -1,5 +1,9 @@
 # Parallel Convolutional Neural Network (PCNN)
 
+This software program is a light-weighted parallel Convolutional Neural Network (CNN) training framework written in C and C++.
+The training is parallelized using MPI-OpenMP programming model.
+Given the user-defined model architecture and the input data, PCNN trains the model and returns the accuracy curves and the model parameters (checkpoint files).
+
 ## Software Requirements
 * OpenMP for parallelizing non-kernel operations based on the shared-memory programming model.
 * MPI C and C++ compilers
