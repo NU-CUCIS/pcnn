@@ -32,7 +32,7 @@ int pcnn_record_checkpoint(struct param_t *param, struct model_t *model, struct 
     if(queue->nproc > 1)
         pcnn_model_put_momentum_together(model, param, queue);
 
-    if(queue->group_id == 0 && queue->rank == 0){
+    if(queue->rank == 0){
         if((param->num_trained_epochs % model->checkpoint_interval) == 0){
             sprintf(name, "%s/check-g%d-e%d.data", model->checkpoint_path, queue->group_id, param->num_trained_epochs);
             printf("checkpointing to %s num_updates: %d num_epochs: %d\n", name, param->num_updates, param->num_trained_epochs);
