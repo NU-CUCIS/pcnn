@@ -3,7 +3,7 @@
 # See COPYRIGHT notice in top-level directory.
 #
 
-AM_CPPFLAGS = -I ${MKLROOT}/include -DUSE_MKL -D_GNU_SOURCE
+AM_CPPFLAGS = -I ${MKLROOT}/include -DUSE_MKL -D_GNU_SOURCE -O2
 AM_LDFLAGS = -L${MKLROOT}/lib/intel64 -Wl,--no-as-needed -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core -liomp5 -lpthread -lm -ldl \
 			 -lopencv_core -lopencv_imgproc -lopencv_highgui
 if OPENCV3X
