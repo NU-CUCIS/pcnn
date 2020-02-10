@@ -419,13 +419,14 @@ static void pcnn_bn_scale_shift_bp(struct layer_t *layer, struct model_t *model,
         cblas_sscal(area, layer->gamma[i], &layer->e[i * area], 1);
 }
 
-void pcnn_bn_update(struct layer_t *layer, struct model_t *model, struct param_t *param, struct comm_queue_t *queue)
+void pcnn_bn_update(struct layer_t *layer, struct model_t *model, struct param_t *param, struct feeder_t *feeder, struct comm_queue_t *queue)
 {
     int i;
     int length;
     float correction;
     float *weight_gradient_sums;
     float *bias_gradient_sums;
+    const float scale = 1.0f / feeder->local_batch_size;
 
     /* Only convolution layer is compatible with batch normalization. */
     if(layer->type != LAYER_TYPE_CONV)
@@ -452,16 +453,18 @@ void pcnn_bn_update(struct layer_t *layer, struct model_t *model, struct param_t
          * the batch normalization coefficients. These batch normalization
          * coefficients are locally trained using a small batch size.
          * Regularization is not necessary in this case. */
-        cblas_sscal(length, queue->nproc, weight_gradient_sums, 1);
+        cblas_sscal(length, scale, weight_gradient_sums, 1);
+        //cblas_sscal(length, queue->nproc, weight_gradient_sums, 1);
         cblas_saxpby(length, model->learning_rate, weight_gradient_sums, 1, model->momentum, layer->prev_dgamma, 1);
         cblas_saxpy(length, -1.0f, layer->prev_dgamma, 1, layer->gamma, 1);
 
-        cblas_sscal(length, queue->nproc, bias_gradient_sums, 1);
+        cblas_sscal(length, scale, bias_gradient_sums, 1);
+        //cblas_sscal(length, queue->nproc, bias_gradient_sums, 1);
         cblas_saxpby(length, model->learning_rate, bias_gradient_sums, 1, model->momentum, layer->prev_dbeta, 1);
         cblas_saxpy(length, -1.0f, layer->prev_dbeta, 1, layer->beta, 1);
     }
     else if(model->optimizer == OPTIMIZER_ADAM){
-        cblas_saxpby(length, 1.f - model->beta1, weight_gradient_sums, 1, model->beta1, layer->m_dgamma, 1);
+        cblas_saxpby(length, (1.f - model->beta1) * scale, weight_gradient_sums, 1, model->beta1, layer->m_dgamma, 1);
 
 #pragma omp parallel for
         for(i=0; i<length; i++)
@@ -479,7 +482,7 @@ void pcnn_bn_update(struct layer_t *layer, struct model_t *model, struct param_t
         correction = sqrtf(1.f - param->beta2_decay) / (1.f - param->beta1_decay);
         cblas_saxpby(length, -1.f * model->learning_rate * correction, param->col, 1, 1.f, layer->gamma, 1); 
 
-        cblas_saxpby(length, 1.f - model->beta1, bias_gradient_sums, 1, model->beta1, layer->m_dbeta, 1);
+        cblas_saxpby(length, (1.f - model->beta1) * scale, bias_gradient_sums, 1, model->beta1, layer->m_dbeta, 1);
 
 #pragma omp parallel for
         for(i=0; i<length; i++)

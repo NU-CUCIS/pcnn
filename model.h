@@ -278,9 +278,9 @@ struct param_t *pcnn_model_init_param(struct model_t *model, struct feeder_t *fe
 void pcnn_model_destroy(struct model_t *model);
 void pcnn_model_free_param(struct model_t *model, struct param_t *param);
 void pcnn_model_init_layer(struct model_t *model, struct feeder_t *feeder, struct feature_t *features);
-void pcnn_model_update_layer(struct layer_t *layer, struct model_t *model, struct param_t *param, struct comm_queue_t *queue);
-void pcnn_model_partial_update_conv_layer(struct layer_t *layer, struct model_t *model, struct param_t *param, struct comm_queue_t *queue);
-void pcnn_model_partial_update_full_layer(struct layer_t *layer, struct model_t *model, struct param_t *param, struct comm_queue_t *queue);
+void pcnn_model_update_layer(struct layer_t *layer, struct model_t *model, struct param_t *param, struct feeder_t *feeder, struct comm_queue_t *queue);
+void pcnn_model_partial_update_conv_layer(struct layer_t *layer, struct model_t *model, struct param_t *param, struct feeder_t *feeder, struct comm_queue_t *queue);
+void pcnn_model_partial_update_full_layer(struct layer_t *layer, struct model_t *model, struct param_t *param, struct feeder_t *feeder, struct comm_queue_t *queue);
 void pcnn_model_get_default_features(struct feature_t *features);
 void pcnn_model_decay_learning_rate(struct model_t *model, struct param_t *param);
 void pcnn_model_init_comm_offsets(struct model_t *model, struct comm_queue_t *queue);

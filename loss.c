@@ -93,14 +93,13 @@ static void pcnn_softmax_bp(int imgidx, struct layer_t *layer, struct model_t *m
 {
     int i = 0, j = 0;
     int offset = 0, label_offset = 0;
-    const float scale = 1.0f / feeder->batch_size;
 
 #pragma omp parallel for private(j, offset, label_offset)
     for(i=0; i<feeder->local_batch_size; i++){
         label_offset = (imgidx + i) * layer->num_neurons;
         for(j=0; j<layer->num_neurons; j++){
             offset = j * feeder->local_batch_size + i;
-            layer->e[offset] = scale * (layer->a[offset] - feeder->label[label_offset+j]);
+            layer->e[offset] = layer->a[offset] - feeder->label[label_offset+j];
         }
     }
 
@@ -113,7 +112,6 @@ static void pcnn_mse_bp(int imgidx, struct layer_t *layer, struct model_t *model
     int area;
     int src_off;
     int dst_off;
-    const float scale = 1.0f / feeder->batch_size;
 
     if(layer->type == LAYER_TYPE_CONV || layer->type == LAYER_TYPE_UPSAMPLE){
         area = layer->output_rows * layer->output_cols;
@@ -124,7 +122,7 @@ static void pcnn_mse_bp(int imgidx, struct layer_t *layer, struct model_t *model
                 dst_off = (i * feeder->local_batch_size + j) * area;
                 for(k=0; k<layer->output_rows; k++){
                     for(l=0; l<layer->output_cols; l++){
-                        layer->e[dst_off] = scale * (layer->a[dst_off] - feeder->label[src_off]);
+                        layer->e[dst_off] = layer->a[dst_off] - feeder->label[src_off];
                         dst_off++;
                         src_off++;
                     }
@@ -138,7 +136,7 @@ static void pcnn_mse_bp(int imgidx, struct layer_t *layer, struct model_t *model
             src_off = (imgidx + i) * layer->num_neurons;
             for(j=0; j<layer->num_neurons; j++){
                 dst_off = j * feeder->local_batch_size + i;
-                layer->e[dst_off] = scale * (layer->a[dst_off] - feeder->label[src_off]);
+                layer->e[dst_off] = layer->a[dst_off] - feeder->label[src_off];
                 dst_off++;
                 src_off++;
             }
@@ -152,8 +150,6 @@ static void pcnn_mae_bp(int imgidx, struct layer_t *layer, struct model_t *model
     int area;
     int src_off;
     int dst_off;
-    const float scale = 1.0f / feeder->batch_size;
-    const float negative_scale = -1.0f / feeder->batch_size;
 
     if(layer->type == LAYER_TYPE_CONV || layer->type == LAYER_TYPE_UPSAMPLE){
         area = layer->output_rows * layer->output_cols;
@@ -165,9 +161,9 @@ static void pcnn_mae_bp(int imgidx, struct layer_t *layer, struct model_t *model
                 for(k=0; k<layer->output_rows; k++){
                     for(l=0; l<layer->output_cols; l++){
                         if(layer->a[dst_off] > feeder->label[src_off])
-                            layer->e[dst_off] = scale;
+                            layer->e[dst_off] = 1.0f;
                         else if(layer->a[dst_off] < feeder->label[src_off])
-                            layer->e[dst_off] = negative_scale;
+                            layer->e[dst_off] = -1.0f;
                         else
                             layer->e[dst_off] = 0.f;
 
@@ -185,9 +181,9 @@ static void pcnn_mae_bp(int imgidx, struct layer_t *layer, struct model_t *model
             for(j=0; j<layer->num_neurons; j++){
                 dst_off = j * feeder->local_batch_size + i;
                 if(layer->a[dst_off] > feeder->label[src_off])
-                    layer->e[dst_off] = scale;
+                    layer->e[dst_off] = 1.0f;
                 else if(layer->a[dst_off] < feeder->label[src_off])
-                    layer->e[dst_off] = negative_scale;
+                    layer->e[dst_off] = -1.0f;
                 else
                     layer->e[dst_off] = 0.f;
                 dst_off++;

@@ -48,7 +48,7 @@ void pcnn_ffbp_allreduce_feedforward(int imgidx, int op, struct feeder_t *feeder
                         pthread_cond_wait(&queue->cond, &queue->mut);
                     pthread_mutex_unlock(&queue->mut);
 
-                    pcnn_model_update_layer(top, model, param, queue);
+                    pcnn_model_update_layer(top, model, param, feeder, queue);
                 }
             }
         }
@@ -189,7 +189,7 @@ void pcnn_ffbp_allreduce_update(struct model_t *model, struct param_t *param, st
 
     if(queue->nproc == 1){
         for(i=0; i<model->num_layers; i++)
-			pcnn_model_update_layer(model->layers[i], model, param, queue);
+			pcnn_model_update_layer(model->layers[i], model, param, feeder, queue);
     }
     else{
         if(model->overlap == 0){
@@ -203,7 +203,7 @@ void pcnn_ffbp_allreduce_update(struct model_t *model, struct param_t *param, st
             }
 
             for(i=0; i<model->num_layers; i++)
-                pcnn_model_update_layer(model->layers[i], model, param, queue);
+                pcnn_model_update_layer(model->layers[i], model, param, feeder, queue);
         }
         else{
             /* If the overlapping is turnned on, update the model here 
@@ -216,7 +216,7 @@ void pcnn_ffbp_allreduce_update(struct model_t *model, struct param_t *param, st
                         pthread_cond_wait(&queue->cond, &queue->mut);
                     pthread_mutex_unlock(&queue->mut);
 
-                    pcnn_model_update_layer(model->layers[i], model, param, queue);
+                    pcnn_model_update_layer(model->layers[i], model, param, feeder, queue);
                 }
             }
         }

@@ -879,12 +879,13 @@ void pcnn_model_free_param(struct model_t *model, struct param_t *param)
     }
 }
 
-void pcnn_model_update_layer(struct layer_t *layer, struct model_t *model, struct param_t *param, struct comm_queue_t *queue)
+void pcnn_model_update_layer(struct layer_t *layer, struct model_t *model, struct param_t *param, struct feeder_t *feeder, struct comm_queue_t *queue)
 {
     int i;
     float correction;
     float *weight_gradient_sums;
     float *bias_gradient_sums;
+    const float scale = 1.0f / feeder->batch_size;
 
     /* Only convolution and fully-connected layers are updated. */
     if(layer->type != LAYER_TYPE_CONV && layer->type != LAYER_TYPE_FULL)
@@ -901,18 +902,18 @@ void pcnn_model_update_layer(struct layer_t *layer, struct model_t *model, struc
 
     if(model->optimizer == OPTIMIZER_SGD){
         /* Update weight parameters. */
-        cblas_saxpy(layer->filter_size, model->weight_decay, layer->weight, 1, weight_gradient_sums, 1);
+        cblas_saxpby(layer->filter_size, model->weight_decay, layer->weight, 1, scale, weight_gradient_sums, 1);
         cblas_saxpby(layer->filter_size, model->learning_rate, weight_gradient_sums, 1, model->momentum, layer->prev_sumws, 1);
         cblas_saxpy(layer->filter_size, -1.0f, layer->prev_sumws, 1, layer->weight, 1);
 
         /* Update bias parameters. */
-        cblas_saxpy(layer->bias_size, model->weight_decay, layer->bias, 1, bias_gradient_sums, 1);
+        cblas_saxpby(layer->bias_size, model->weight_decay, layer->bias, 1, scale, bias_gradient_sums, 1);
         cblas_saxpby(layer->bias_size, model->learning_rate, bias_gradient_sums, 1, model->momentum, layer->prev_sumbs, 1);
         cblas_saxpy(layer->bias_size, -1.0f, layer->prev_sumbs, 1, layer->bias, 1);
     }
     else if(model->optimizer == OPTIMIZER_ADAM){
         /* update m */
-        cblas_saxpby(layer->filter_size, 1.f - model->beta1, weight_gradient_sums, 1, model->beta1, layer->m_sumws, 1);
+        cblas_saxpby(layer->filter_size, (1.f - model->beta1) * scale, weight_gradient_sums, 1, model->beta1, layer->m_sumws, 1);
 
         /* update v */
 #pragma omp parallel for
@@ -933,7 +934,7 @@ void pcnn_model_update_layer(struct layer_t *layer, struct model_t *model, struc
         cblas_saxpby(layer->filter_size, -1.f * model->learning_rate * correction, param->col, 1, 1.f, layer->weight, 1); 
 
         /* update m */
-        cblas_saxpby(layer->bias_size, 1.f - model->beta1, bias_gradient_sums, 1, model->beta1, layer->m_sumbs, 1);
+        cblas_saxpby(layer->bias_size, (1.f - model->beta1) * scale, bias_gradient_sums, 1, model->beta1, layer->m_sumbs, 1);
 
         /* update v */
 #pragma omp parallel for
@@ -954,17 +955,19 @@ void pcnn_model_update_layer(struct layer_t *layer, struct model_t *model, struc
     }
 
     if(layer->batch_norm)
-        pcnn_bn_update(layer, model, param, queue);
+        pcnn_bn_update(layer, model, param, feeder, queue);
 }
 
 void pcnn_model_partial_update_conv_layer(struct layer_t *layer,
                                           struct model_t *model,
                                           struct param_t *param,
+                                          struct feeder_t *feeder,
                                           struct comm_queue_t *queue)
 {
     int i, offset, length;
     float correction;
     float *gradients;
+    const float scale = 1.0f / feeder->batch_size;
 
     /* Only convolution and fully-connected layers are updated. */
     if(layer->type != LAYER_TYPE_CONV && layer->type != LAYER_TYPE_FULL)
@@ -989,13 +992,13 @@ void pcnn_model_partial_update_conv_layer(struct layer_t *layer,
 
     if(model->optimizer == OPTIMIZER_SGD){
         /* Update weight parameters. */
-        cblas_saxpby(length, model->weight_decay, &layer->weight[offset], 1, 1, gradients, 1);
+        cblas_saxpby(length, model->weight_decay, &layer->weight[offset], 1, scale, gradients, 1);
         cblas_saxpby(length, model->learning_rate, gradients, 1, model->momentum, &layer->prev_sumws[offset], 1);
         cblas_saxpy(length, -1.0f, &layer->prev_sumws[offset], 1, &layer->weight[offset], 1);
     }
     else if(model->optimizer == OPTIMIZER_ADAM){
         /* update m */
-        cblas_saxpby(length, 1.f - model->beta1, gradients, 1, model->beta1, &layer->m_sumws[offset], 1);
+        cblas_saxpby(length, (1.f - model->beta1) * scale, gradients, 1, model->beta1, &layer->m_sumws[offset], 1);
 
         /* update v */
 #pragma omp parallel for
@@ -1021,18 +1024,20 @@ void pcnn_model_partial_update_conv_layer(struct layer_t *layer,
     memcpy(layer->local_sumws, &layer->weight[offset], sizeof(float) * length);
 
     if(layer->batch_norm)
-        pcnn_bn_update(layer, model, param, queue);
+        pcnn_bn_update(layer, model, param, feeder, queue);
 }
 
 void pcnn_model_partial_update_full_layer(struct layer_t *layer,
                                           struct model_t *model,
                                           struct param_t *param,
+                                          struct feeder_t *feeder,
                                           struct comm_queue_t *queue)
 {
     int i, length, offset;
     float correction;
     float *weight_gradient_sums;
     float *bias_gradient_sums;
+    const float scale = 1.0f / feeder->batch_size;
 
     /* Only convolution and fully-connected layers are updated. */
     if(layer->type != LAYER_TYPE_CONV && layer->type != LAYER_TYPE_FULL)
@@ -1059,18 +1064,18 @@ void pcnn_model_partial_update_full_layer(struct layer_t *layer,
 
     if(model->optimizer == OPTIMIZER_SGD){
         /* Update weight parameters. */
-        cblas_saxpby(length, model->weight_decay, &layer->weight[offset], 1, 1, weight_gradient_sums, 1);
+        cblas_saxpby(length, model->weight_decay, &layer->weight[offset], 1, scale, weight_gradient_sums, 1);
         cblas_saxpby(length, model->learning_rate, weight_gradient_sums, 1, model->momentum, &layer->prev_sumws[offset], 1);
         cblas_saxpy(length, -1.0f, &layer->prev_sumws[offset], 1, &layer->weight[offset], 1);
 
         /* Update bias parameters. */
-        cblas_saxpby(layer->bias_size, model->weight_decay, layer->bias, 1, 1, bias_gradient_sums, 1);
+        cblas_saxpby(layer->bias_size, model->weight_decay, layer->bias, 1, scale, bias_gradient_sums, 1);
         cblas_saxpby(layer->bias_size, model->learning_rate, bias_gradient_sums, 1, model->momentum, layer->prev_sumbs, 1);
         cblas_saxpy(layer->bias_size, -1.0f, layer->prev_sumbs, 1, layer->bias, 1);
     }
     else if(model->optimizer == OPTIMIZER_ADAM){
         /* update m */
-        cblas_saxpby(length, 1.f - model->beta1, weight_gradient_sums, 1, model->beta1, &layer->m_sumws[offset], 1);
+        cblas_saxpby(length, (1.f - model->beta1) * scale, weight_gradient_sums, 1, model->beta1, &layer->m_sumws[offset], 1);
 
         /* update v */
 #pragma omp parallel for
@@ -1091,7 +1096,7 @@ void pcnn_model_partial_update_full_layer(struct layer_t *layer,
         cblas_saxpby(length, -1.f * model->learning_rate * correction, param->col, 1, 1.f, &layer->weight[offset], 1); 
 
         /* update m */
-        cblas_saxpby(layer->bias_size, 1.f - model->beta1, bias_gradient_sums, 1, model->beta1, layer->m_sumbs, 1);
+        cblas_saxpby(layer->bias_size, (1.f - model->beta1) * scale, bias_gradient_sums, 1, model->beta1, layer->m_sumbs, 1);
 
         /* update v */
 #pragma omp parallel for
@@ -1116,7 +1121,7 @@ void pcnn_model_partial_update_full_layer(struct layer_t *layer,
     memcpy(layer->local_sumws, &layer->weight[offset], sizeof(float) * length);
 
     if(layer->batch_norm)
-        pcnn_bn_update(layer, model, param, queue);
+        pcnn_bn_update(layer, model, param, feeder, queue);
 }
 
 void pcnn_model_get_default_features(struct feature_t *features)

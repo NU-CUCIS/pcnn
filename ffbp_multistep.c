@@ -193,13 +193,13 @@ static void pcnn_ffbp_multistep_backprop_no_overlap(int imgidx, int op, struct f
         for(i=0; i<model->num_layers; i++){
             top = model->layers[i];
             if(top->type == LAYER_TYPE_CONV){
-                pcnn_model_partial_update_conv_layer(top, model, param, queue);
+                pcnn_model_partial_update_conv_layer(top, model, param, feeder, queue);
                 req.type = COMM_TYPE_GATHER_CONV_PARAM;
                 req.layer_id = top->id;
                 pcnn_comm_insert_req(model, queue, &req);
             }
             else if(top->type == LAYER_TYPE_FULL){
-                pcnn_model_partial_update_full_layer(top, model, param, queue);
+                pcnn_model_partial_update_full_layer(top, model, param, feeder, queue);
                 req.type = COMM_TYPE_GATHER_W;
                 req.layer_id = top->id;
                 pcnn_comm_insert_req(model, queue, &req);
@@ -295,7 +295,7 @@ static void pcnn_ffbp_multistep_backprop_overlap(int imgidx, int op, struct feed
             if(top->type == LAYER_TYPE_CONV){
                 for(j=1; j<queue->nproc; j++)
                     cblas_saxpy(top->num_local_gradients, 1, &top->global_sumws[j * top->num_local_gradients], 1, top->global_sumws, 1);
-                pcnn_model_partial_update_conv_layer(top, model, param, queue);
+                pcnn_model_partial_update_conv_layer(top, model, param, feeder, queue);
 
                 req.type = COMM_TYPE_GATHER_CONV_PARAM;
                 req.layer_id = top->id;
@@ -345,7 +345,7 @@ static void pcnn_ffbp_multistep_backprop_overlap(int imgidx, int op, struct feed
                 pcnn_full_gradb_pattern1(top, model, feeder, queue);
 
                 if(queue->nproc > 1){
-                    pcnn_model_partial_update_full_layer(top, model, param, queue);
+                    pcnn_model_partial_update_full_layer(top, model, param, feeder, queue);
 
                     req.type = COMM_TYPE_GATHER_W;
                     req.layer_id = top->id;
@@ -448,7 +448,7 @@ void pcnn_ffbp_multistep_update(struct model_t *model, struct param_t *param, st
 
 	if(queue->nproc == 1){
 		for(i=0; i<model->num_layers; i++)
-			pcnn_model_update_layer(model->layers[i], model, param, queue);
+			pcnn_model_update_layer(model->layers[i], model, param, feeder, queue);
 	}
 	else{
         if(model->overlap == 0){
