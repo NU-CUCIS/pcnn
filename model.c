@@ -901,15 +901,9 @@ void pcnn_model_update_layer(struct layer_t *layer, struct model_t *model, struc
     }
 
     if(model->optimizer == OPTIMIZER_SGD){
-        /* Update weight parameters. */
-        cblas_saxpby(layer->filter_size, model->weight_decay, layer->weight, 1, scale, weight_gradient_sums, 1);
-        cblas_saxpby(layer->filter_size, model->learning_rate, weight_gradient_sums, 1, model->momentum, layer->prev_sumws, 1);
-        cblas_saxpy(layer->filter_size, -1.0f, layer->prev_sumws, 1, layer->weight, 1);
-
-        /* Update bias parameters. */
-        cblas_saxpby(layer->bias_size, model->weight_decay, layer->bias, 1, scale, bias_gradient_sums, 1);
-        cblas_saxpby(layer->bias_size, model->learning_rate, bias_gradient_sums, 1, model->momentum, layer->prev_sumbs, 1);
-        cblas_saxpy(layer->bias_size, -1.0f, layer->prev_sumbs, 1, layer->bias, 1);
+        cblas_saxpby(layer->num_gradients, model->weight_decay, layer->weight, 1, scale, weight_gradient_sums, 1);
+        cblas_saxpby(layer->num_gradients, 1.0f, weight_gradient_sums, 1, model->momentum, layer->prev_sumws, 1);
+        cblas_saxpy(layer->num_gradients, -1.0f * model->learning_rate, layer->prev_sumws, 1, layer->weight, 1);
     }
     else if(model->optimizer == OPTIMIZER_ADAM){
         /* update m */
@@ -991,10 +985,9 @@ void pcnn_model_partial_update_conv_layer(struct layer_t *layer,
     }
 
     if(model->optimizer == OPTIMIZER_SGD){
-        /* Update weight parameters. */
         cblas_saxpby(length, model->weight_decay, &layer->weight[offset], 1, scale, gradients, 1);
-        cblas_saxpby(length, model->learning_rate, gradients, 1, model->momentum, &layer->prev_sumws[offset], 1);
-        cblas_saxpy(length, -1.0f, &layer->prev_sumws[offset], 1, &layer->weight[offset], 1);
+        cblas_saxpby(length, 1.0f, gradients, 1, model->momentum, &layer->prev_sumws[offset], 1);
+        cblas_saxpy(length, -1.0f * model->learning_rate, &layer->prev_sumws[offset], 1, &layer->weight[offset], 1);
     }
     else if(model->optimizer == OPTIMIZER_ADAM){
         /* update m */
@@ -1065,13 +1058,13 @@ void pcnn_model_partial_update_full_layer(struct layer_t *layer,
     if(model->optimizer == OPTIMIZER_SGD){
         /* Update weight parameters. */
         cblas_saxpby(length, model->weight_decay, &layer->weight[offset], 1, scale, weight_gradient_sums, 1);
-        cblas_saxpby(length, model->learning_rate, weight_gradient_sums, 1, model->momentum, &layer->prev_sumws[offset], 1);
-        cblas_saxpy(length, -1.0f, &layer->prev_sumws[offset], 1, &layer->weight[offset], 1);
+        cblas_saxpby(length, 1.0f, weight_gradient_sums, 1, model->momentum, &layer->prev_sumws[offset], 1);
+        cblas_saxpy(length, -1.0f * model->learning_rate, &layer->prev_sumws[offset], 1, &layer->weight[offset], 1);
 
         /* Update bias parameters. */
         cblas_saxpby(layer->bias_size, model->weight_decay, layer->bias, 1, scale, bias_gradient_sums, 1);
-        cblas_saxpby(layer->bias_size, model->learning_rate, bias_gradient_sums, 1, model->momentum, layer->prev_sumbs, 1);
-        cblas_saxpy(layer->bias_size, -1.0f, layer->prev_sumbs, 1, layer->bias, 1);
+        cblas_saxpby(layer->bias_size, 1.0f, bias_gradient_sums, 1, model->momentum, layer->prev_sumbs, 1);
+        cblas_saxpy(layer->bias_size, -1.0f * model->learning_rate, layer->prev_sumbs, 1, layer->bias, 1);
     }
     else if(model->optimizer == OPTIMIZER_ADAM){
         /* update m */

@@ -27,7 +27,7 @@
  * Weight parameters are initialized with Gaussian N(0, sqrt(2/fan_in))
  * 2: Glorot normal method
  * Weight parameters are initialized with Gaussian N(0, sqrt(6/(fan_in + fan_out))) */
-#define PARAM_INIT_METHOD 2
+#define PARAM_INIT_METHOD 1
 /********** Batch normalization parameters ****/
 #define EPS_FACTOR 0.00001
 #define MOVING_AVERAGE_FRACTION 0.999
