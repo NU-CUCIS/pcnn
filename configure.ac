@@ -57,15 +57,20 @@ if test "x$have_opencv" = xno ; then
       -----------------------------------------------------------------------])
 fi
 
-AC_MSG_CHECKING([whether OpenCV version is 3.x])
+AC_MSG_CHECKING([whether OpenCV version is older than 3.x])
 AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
 #include "opencv2/opencv.hpp"
 #if (CV_MAJOR_VERSION < 3)
 #error OpenCV version is 2.x
 #endif
-]])], [opencv_3x=yes], [opencv_3x=no])
-AC_MSG_RESULT([$opencv_3x])
-AM_CONDITIONAL([OPENCV3X], [test "x$opencv_3x" = "xyes"])
+]])], [opencv_older_than_3x=no], [opencv_older_than_3x=yes])
+AC_MSG_RESULT([$opencv_older_than_3x])
+if test "x$opencv_older_than_3x" = xyes ; then
+      AC_MSG_ERROR([
+      -----------------------------------------------------------------------
+      Too old OpenCV version. PCNN requires >= 3.x version of OpenCV. Abort.
+      -----------------------------------------------------------------------])
+fi
 
 AC_LANG_POP(C++)
 
