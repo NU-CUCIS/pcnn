@@ -7,7 +7,7 @@ Given the user-defined model architecture and the input data, PCNN trains the mo
 ## Software Requirements
 * OpenMP for parallelizing non-kernel operations based on the shared-memory programming model.
 * MPI C and C++ compilers
-* OpenCV for handling the input image files.
+* OpenCV (> 3.x) for handling the input image files.
 * Intel MKL for the kernel operations such as matrix-matrix multiplication.
 * Boost for generating random numbers.
 
