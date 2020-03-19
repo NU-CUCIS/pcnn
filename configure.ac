@@ -24,7 +24,7 @@ AC_ARG_WITH([opencv],
      *)
         if test -n "$withval"; then
           opencv_inc="$withval/include"
-          opencv_lib="$withval/lib"
+          opencv_lib="$withval/lib64"
         fi
         ;;
    esac
