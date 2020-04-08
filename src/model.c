@@ -320,6 +320,7 @@ void pcnn_model_init_layer(struct model_t *model, struct feeder_t *feeder, struc
         layer->output_rows = features->filter_rows; /* In a fully-connected layer, filter_rows is the number of neurons. */
     }
     else if(features->type == LAYER_TYPE_UPSAMPLE){
+        layer->output_depth = 1;
         layer->output_rows = layer->input_rows * model->upsample_ratio;
         layer->output_cols = layer->input_cols * model->upsample_ratio;
         layer->output_channels = layer->input_channels / (model->upsample_ratio * model->upsample_ratio);
