@@ -17,8 +17,8 @@
 #define ADAM_EPSILON 1e-8
 /********** Hyper-parameter settings **********/
 #define BATCH_SIZE 128
-#define LEARNING_RATE 0.282843
-#define LEARNING_RATE_DECAY_STEPS 250
+#define LEARNING_RATE 0.1
+#define LEARNING_RATE_DECAY_STEPS 80
 #define LEARNING_RATE_DECAY_FACTOR 0.1f
 /********** Parameter initialization **********
  * 0: Constant
