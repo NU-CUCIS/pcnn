@@ -8,6 +8,7 @@
 #else
 #include <cblas.h>
 #endif
+#include <stdlib.h>
 #include "def.h"
 #include "model.h"
 #include "feeder.h"
@@ -47,7 +48,7 @@ static void pcnn_ffbp_multistep_backprop_no_overlap(int imgidx, int op, struct f
         while(queue->flag_reduce_l == 1)
             pthread_cond_wait(&queue->cond, &queue->mut);
         pthread_mutex_unlock(&queue->mut);
-        model->loss = param->global_loss;
+        model->loss = (param->global_loss / feeder->batch_size);
     }
     else{
         model->loss = param->local_loss;
@@ -226,10 +227,10 @@ static void pcnn_ffbp_multistep_backprop_overlap(int imgidx, int op, struct feed
         while(queue->flag_reduce_l == 1)
             pthread_cond_wait(&queue->cond, &queue->mut);
         pthread_mutex_unlock(&queue->mut);
-        model->loss = param->global_loss;
+        model->loss = (param->global_loss / feeder->batch_size);
     }
     else{
-        model->loss = param->local_loss;
+        model->loss = (param->local_loss / feeder->batch_size);
     }
 
     /* From the top to the bottom, compute the errors and propagate back. */
@@ -297,9 +298,16 @@ static void pcnn_ffbp_multistep_backprop_overlap(int imgidx, int op, struct feed
                     cblas_saxpy(top->num_local_gradients, 1, &top->global_sumws[j * top->num_local_gradients], 1, top->global_sumws, 1);
                 pcnn_model_partial_update_conv_layer(top, model, param, feeder, queue);
 
-                req.type = COMM_TYPE_GATHER_CONV_PARAM;
-                req.layer_id = top->id;
-                pcnn_comm_insert_req(model, queue, &req);
+                if(queue->num_groups > 1 && param->num_updates % queue->sync_interval == 0){
+                    req.type = COMM_TYPE_REDUCE_CONV_PARAM;
+                    req.layer_id = top->id;
+                    pcnn_comm_insert_req(model, queue, &req);
+                }
+                else{
+                    req.type = COMM_TYPE_GATHER_CONV_PARAM;
+                    req.layer_id = top->id;
+                    pcnn_comm_insert_req(model, queue, &req);
+                }
             }
         }
     }
@@ -347,6 +355,51 @@ static void pcnn_ffbp_multistep_backprop_overlap(int imgidx, int op, struct feed
                 if(queue->nproc > 1){
                     pcnn_model_partial_update_full_layer(top, model, param, feeder, queue);
 
+                    if(queue->num_groups > 1 && param->num_updates % queue->sync_interval == 0){
+                        req.type = COMM_TYPE_REDUCE_FULL_PARAM;
+                        req.layer_id = top->id;
+                        pcnn_comm_insert_req(model, queue, &req);
+                    }
+                    else{
+                        req.type = COMM_TYPE_GATHER_W;
+                        req.layer_id = top->id;
+                        pcnn_comm_insert_req(model, queue, &req);
+                    }
+                }
+            }
+        }
+    }
+
+    /* Once the gradients are all aggregated across groups,
+     * post an allgather for each layer within each group. 
+     * This routine is performed for local SGD only. */
+    if(queue->nproc > 1){
+        if(queue->num_groups > 1 && param->num_updates % queue->sync_interval == 0){
+            const float ratio = 1.f / queue->num_groups;
+            for(i=0; i<model->num_layers; i++){
+                top = model->layers[i];
+
+                if(top->type == LAYER_TYPE_CONV){
+                    pthread_mutex_lock(&queue->mut);
+                    while(queue->flag_reduce_p[top->id] == 1)
+                        pthread_cond_wait(&queue->cond, &queue->mut);
+                    pthread_mutex_unlock(&queue->mut);
+
+                    cblas_saxpby(top->num_local_gradients, ratio, top->global_sumws, 1, 0, top->local_sumws, 1);
+
+                    req.type = COMM_TYPE_GATHER_CONV_PARAM;
+                    req.layer_id = top->id;
+                    pcnn_comm_insert_req(model, queue, &req);
+                }
+                else if(top->type == LAYER_TYPE_FULL){
+                    pthread_mutex_lock(&queue->mut);
+                    while(queue->flag_reduce_p[top->id] == 1)
+                        pthread_cond_wait(&queue->cond, &queue->mut);
+                    pthread_mutex_unlock(&queue->mut);
+
+                    cblas_saxpby(top->local_weight_count, ratio, top->global_sumws, 1, 0, top->local_sumws, 1);
+                    cblas_saxpby(top->bias_size, ratio, top->global_sumbs, 1, 0, top->bias, 1);
+
                     req.type = COMM_TYPE_GATHER_W;
                     req.layer_id = top->id;
                     pcnn_comm_insert_req(model, queue, &req);
@@ -376,24 +429,6 @@ void pcnn_ffbp_multistep_feedforward(int imgidx, int op, struct feeder_t *feeder
                 while(queue->flag_gather_g[i] == 1)
                     pthread_cond_wait(&queue->cond, &queue->mut);
                 pthread_mutex_unlock(&queue->mut);
-            }
-        }
-
-        if(queue->nproc * queue->num_groups > 1){
-            /* Average the parameters among communication groups. */
-            if(top->type == LAYER_TYPE_CONV || top->type == LAYER_TYPE_FULL){
-                if(queue->num_groups > 1 && param->num_updates % queue->sync_interval == 0){
-                    req.type = COMM_TYPE_REDUCE_P;
-                    req.layer_id = top->id;
-                    pcnn_comm_insert_req(model, queue, &req);
-
-                    pthread_mutex_lock(&queue->mut);
-                    while(queue->flag_reduce_p[i] == 1)
-                    pthread_cond_wait(&queue->cond, &queue->mut);
-                    pthread_mutex_unlock(&queue->mut);
-
-                    cblas_saxpby(top->num_gradients, ratio, top->global_sumws, 1, 0, top->weight, 1);
-                }
             }
         }
 
@@ -445,10 +480,36 @@ void pcnn_ffbp_multistep_backprop(int imgidx, int op, struct feeder_t *feeder, s
 void pcnn_ffbp_multistep_update(struct model_t *model, struct param_t *param, struct feeder_t *feeder, struct comm_queue_t *queue)
 {
 	int i;
+    struct comm_req_t req;
+    struct layer_t *layer;
+    const float ratio = 1.f / queue->num_groups;
 
 	if(queue->nproc == 1){
-		for(i=0; i<model->num_layers; i++)
+		for(i=0; i<model->num_layers; i++){
 			pcnn_model_update_layer(model->layers[i], model, param, feeder, queue);
+
+            if(queue->num_groups > 1 && param->num_updates % queue->sync_interval == 0){
+                layer = model->layers[i];
+                if(layer->type == LAYER_TYPE_CONV || layer->type == LAYER_TYPE_FULL){
+                    req.type = COMM_TYPE_REDUCE_P;
+                    req.layer_id = layer->id;
+                    pcnn_comm_insert_req(model, queue, &req);
+                }
+            }
+        }
+
+        if(queue->num_groups > 1 && param->num_updates % queue->sync_interval == 0){
+            for(i=0; i<model->num_layers; i++){
+                layer = model->layers[i];
+                if(layer->type == LAYER_TYPE_CONV || layer->type == LAYER_TYPE_FULL){
+                    pthread_mutex_lock(&queue->mut);
+                    while(queue->flag_reduce_p[i] == 1)
+                        pthread_cond_wait(&queue->cond, &queue->mut);
+                    pthread_mutex_unlock(&queue->mut);
+                    cblas_saxpby(layer->num_gradients, ratio, layer->global_sumws, 1, 0, layer->weight, 1);
+                }
+            }
+        }
 	}
 	else{
         if(model->overlap == 0){

@@ -3,204 +3,289 @@
  * See COPYRIGHT notice in top-level directory.
  */
 #include <stdio.h>
+#include <stdlib.h>
+#include <mpi.h>
 
 /* This function is brought from Caffe source code (caffe/util/im2col.cpp) */
 inline int is_a_ge_zero_and_a_lt_b(int a, int b){
 	return (unsigned)(a) < (unsigned)(b);
 }
 
-/* Input: (N) x (ID x IR x IC)
- * Output: (ID x FR x FC) x (N x OR x OC) */
-void pcnn_transform_im2col1(float *data, float *column_buffer, 
-                            int pad_rows, int pad_cols,
-                            int stride_rows, int stride_cols,
-                            int input_depth, int input_rows, int input_cols,
-                            int output_rows, int output_cols,
-                            int filter_rows, int filter_cols, int count)
+/* Input: (N) x (IF x ID x IR x IC)
+ * Output: (IF x FD x FR x FC) x (N x OD x OR x OC) */
+void pcnn_transform_im2col1(float *data, float *column_buffer, int count,
+                            int pad_depth, int pad_rows, int pad_cols,
+                            int stride_depth, int stride_rows, int stride_cols,
+                            int input_channels, int input_depth, int input_rows, int input_cols,
+                            int output_depth, int output_rows, int output_cols,
+                            int filter_depth, int filter_rows, int filter_cols)
 {
-	int i,j,k,l,m,n;
-	int farea, offset;
-	int row, col;
-	int image_offset=0;
+    size_t i,j,k,l,m,n,o,p;
+    size_t farea, iarea, offset;
+    size_t row, col, depth;
+    size_t image_offset;
+    size_t sample_offset;
 
-	farea = filter_rows * filter_cols * count * output_rows * output_cols;
+    farea = (size_t)filter_depth * (size_t)filter_rows * (size_t)filter_cols *
+            (size_t)output_depth * (size_t)output_rows * (size_t)output_cols * (size_t)count;
 
-#pragma omp parallel for private(j,k,l,m,n,offset,row,col,image_offset) schedule(dynamic)
-	for(i=0; i<input_depth; i++){
+    iarea = input_depth * input_rows * input_cols;
+
+#pragma omp parallel for private(j,k,l,m,n,o,p,depth,row,col,image_offset,sample_offset,offset) schedule(dynamic)
+    for(i=0; i<input_channels; i++){
 		offset = i*farea;
-		for(j=0; j<filter_rows; j++){
-			for(k=0; k<filter_cols; k++){
-				for(l=0; l<count; l++){
-					image_offset = (l*input_depth+i)*input_rows*input_cols;
-					row = j - pad_rows;
-					for(m=0; m<output_rows; m++){
-						if(is_a_ge_zero_and_a_lt_b(row, input_rows)){
-							col = k - pad_cols;
-							for(n=0; n<output_cols; n++){
-								if(is_a_ge_zero_and_a_lt_b(col, input_cols))
-									column_buffer[offset++] = data[image_offset+row*input_cols+col];
-								else
-									column_buffer[offset++] = 0;
-
-								col += stride_cols;
-							}
-						}
-						else{
-							for(n=0; n<output_cols; n++)
-								column_buffer[offset++] = 0;
-						}
-						row += stride_rows;
-					}
-				}
-			}
-		}
-	}
-}
-
-/* Input: (ID) x (N x IR x IC)
- * Output: (ID x FR x FC) x (N x OR x OC) */
-void pcnn_transform_im2col2(float *data, float *column_buffer, 
-                            int pad_rows, int pad_cols,
-                            int stride_rows, int stride_cols,
-                            int input_depth, int input_rows, int input_cols,
-                            int output_rows, int output_cols,
-                            int filter_rows, int filter_cols, int count)
-{
-	int i,j,k,l,m,n;
-	unsigned int farea, offset;
-	unsigned int row, col;
-	unsigned int image_offset=0;
-
-	farea = filter_rows * filter_cols * count * output_rows * output_cols;
-
-#pragma omp parallel for private(j,k,l,m,n,offset,row,col,image_offset) schedule(dynamic)
-	for(i=0; i<input_depth; i++){
-		offset = i*farea;
-		for(j=0; j<filter_rows; j++){
-			for(k=0; k<filter_cols; k++){
-				for(l=0; l<count; l++){
-					image_offset = (i*count+l)*input_rows*input_cols;
-					row = j - pad_rows;
-					for(m=0; m<output_rows; m++){
-						if(is_a_ge_zero_and_a_lt_b(row, input_rows)){
-							col = k - pad_cols;
-							for(n=0; n<output_cols; n++){
-								if(is_a_ge_zero_and_a_lt_b(col, input_cols))
-									column_buffer[offset++] = data[image_offset+row*input_cols+col];
-								else
-									column_buffer[offset++] = 0;
-
-								col += stride_cols;
-							}
-						}
-						else{
-							for(n=0; n<output_cols; n++)
-								column_buffer[offset++] = 0;
-						}
-						row += stride_rows;
-					}
-				}
-			}
-		}
-	}
-}
-
-/* Input: (ID) x (N x IR x IC)
- * Output: (N x OR x OC) x (ID x FR x FC) */
-void pcnn_transform_im2col_prime(float *data, float *column_buffer, 
-                                 int pad_rows, int pad_cols,
-                                 int stride_rows, int stride_cols,
-                                 int input_depth, int input_rows, int input_cols,
-                                 int output_rows, int output_cols,
-                                 int filter_rows, int filter_cols, int count)
-{
-	int i,j,k,l,m,n;
-	unsigned int farea, offset;
-	unsigned int row, col;
-	unsigned int image_offset=0;
-    unsigned int off_row, off_col;
-
-    farea = input_depth * filter_rows * filter_cols;
-#pragma omp parallel for private(j,k,l,m,n,offset,off_row,off_col,row,col,image_offset) schedule(dynamic)
-	for(i=0; i<input_depth; i++){
-        off_col = i*filter_rows*filter_cols;
-		for(j=0; j<filter_rows; j++){
-			for(k=0; k<filter_cols; k++){
-                off_row = 0;
-				for(l=0; l<count; l++){
-					image_offset = (i*count+l)*input_rows*input_cols;
-					row = j - pad_rows;
-					for(m=0; m<output_rows; m++){
-						if(is_a_ge_zero_and_a_lt_b(row, input_rows)){
-							col = k - pad_cols;
-							for(n=0; n<output_cols; n++){
-                                offset = off_row*farea + off_col;
-								if(is_a_ge_zero_and_a_lt_b(col, input_cols)){
-									column_buffer[offset] = data[image_offset+row*input_cols+col];
+        for(j=0; j<filter_depth; j++){
+            for(k=0; k<filter_rows; k++){
+                for(l=0; l<filter_cols; l++){
+                    for(m=0; m<count; m++){
+					    sample_offset = (m * input_channels + i) * iarea;
+                        depth = j - pad_depth;
+                        for(n=0; n<output_depth; n++){
+                            if(is_a_ge_zero_and_a_lt_b(depth, input_depth)){
+                                row = k - pad_rows;
+                                for(o=0; o<output_rows; o++){
+                                    if(is_a_ge_zero_and_a_lt_b(row, input_rows)){
+                                        col = l - pad_cols;
+                                        for(p=0; p<output_cols; p++){
+                                            if(is_a_ge_zero_and_a_lt_b(col, input_cols)){
+                                                image_offset = depth * input_rows * input_cols + row * input_cols + col;
+									            column_buffer[offset++] = data[sample_offset + image_offset];
+                                            }
+                                            else{
+									            column_buffer[offset++] = 0;
+                                            }
+                                            col += stride_cols;
+                                        }
+                                    }
+                                    else{
+                                        for(p=0; p<output_cols; p++){
+                                            column_buffer[offset++] = 0;
+                                        }
+                                    }
+                                    row += stride_rows;
                                 }
-								else{
-									column_buffer[offset] = 0;
-                                }
-								col += stride_cols;
-                                off_row++;
-							}
-						}
-						else{
-							for(n=0; n<output_cols; n++){
-                                offset = off_row*farea + off_col;
-								column_buffer[offset] = 0;
-                                off_row++;
                             }
-						}
-						row += stride_rows;
-					}
-				}
-                off_col++;
-			}
-		}
-	}
+                            else{
+                                for(o=0; o<output_rows; o++){
+                                    for(p=0; p<output_cols; p++){
+								        column_buffer[offset++] = 0;
+                                    }
+                                }
+                            }
+                            depth += stride_depth;
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
-/* Input: (ID x FR x FC) x (N x OR x OC)
- * Output: (ID) x (N x IR x IC) */
-void pcnn_transform_col2im(float *data, float *column_buffer,
-                           int pad_rows, int pad_cols,
-                           int stride_rows, int stride_cols,
-                           int input_depth, int input_rows, int input_cols,
-                           int output_rows, int output_cols,
-                           int filter_rows, int filter_cols, int count)
+/* Input: (IF) x (N x ID x IR x IC)
+ * Output: (IF x FD x FR x FC) x (N x OD x OR x OC) */
+void pcnn_transform_im2col2(float *data, float *column_buffer, int count,
+                            int pad_depth, int pad_rows, int pad_cols,
+                            int stride_depth, int stride_rows, int stride_cols,
+                            int input_channels, int input_depth, int input_rows, int input_cols,
+                            int output_depth, int output_rows, int output_cols,
+                            int filter_depth, int filter_rows, int filter_cols)
 {
-	int i,j,k,l,m,n;
-	unsigned int row, col;
-	unsigned int in_off, out_off;
-	const unsigned int area = count * output_rows * output_cols * filter_rows * filter_cols;
+    size_t i,j,k,l,m,n,o,p;
+    size_t farea, iarea, offset;
+    size_t depth, row, col;
+    size_t image_offset;
+    size_t sample_offset;
 
-#pragma omp parallel for private(j,k,l,m,n,row,col,in_off,out_off)
-	for(i=0; i<input_depth; i++){
+    farea = (size_t)filter_depth * (size_t)filter_rows * (size_t)filter_cols *
+            (size_t)output_depth * (size_t)output_rows * (size_t)output_cols * (size_t)count;
+
+    iarea = input_depth * input_rows * input_cols;
+
+#pragma omp parallel for private(j,k,l,m,n,o,p,depth,row,col,image_offset,sample_offset,offset) schedule(dynamic)
+    for(i=0; i<input_channels; i++){
+		offset = i*farea;
+        for(j=0; j<filter_depth; j++){
+            for(k=0; k<filter_rows; k++){
+                for(l=0; l<filter_cols; l++){
+                    for(m=0; m<count; m++){
+					    sample_offset = (i * count + m) * iarea;
+                        depth = j - pad_depth;
+                        for(n=0; n<output_depth; n++){
+                            if(is_a_ge_zero_and_a_lt_b(depth, input_depth)){
+                                row = k - pad_rows;
+                                for(o=0; o<output_rows; o++){
+                                    if(is_a_ge_zero_and_a_lt_b(row, input_rows)){
+                                        col = l - pad_cols;
+                                        for(p=0; p<output_cols; p++){
+                                            if(is_a_ge_zero_and_a_lt_b(col, input_cols)){
+                                                image_offset = depth * input_rows * input_cols + row * input_cols + col;
+									            column_buffer[offset++] = data[sample_offset + image_offset];
+                                            }
+                                            else{
+									            column_buffer[offset++] = 0;
+                                            }
+                                            col += stride_cols;
+                                        }
+                                    }
+                                    else{
+                                        for(p=0; p<output_cols; p++){
+                                            column_buffer[offset++] = 0;
+                                        }
+                                    }
+                                    row += stride_rows;
+                                }
+                            }
+                            else{
+                                for(o=0; o<output_rows; o++){
+                                    for(p=0; p<output_cols; p++){
+								        column_buffer[offset++] = 0;
+                                    }
+                                }
+                            }
+                            depth += stride_depth;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/* Input: (IF) x (N x ID x IR x IC)
+ * Output: (N x OD x OR x OC) x (IF x FD x FR x FC) */
+void pcnn_transform_im2col_prime(float *data, float *column_buffer, int count,
+                                 int pad_depth, int pad_rows, int pad_cols,
+                                 int stride_depth, int stride_rows, int stride_cols,
+                                 int input_channels, int input_depth, int input_rows, int input_cols,
+                                 int output_depth, int output_rows, int output_cols,
+                                 int filter_depth, int filter_rows, int filter_cols)
+{
+    size_t i,j,k,l,m,n,o,p;
+    size_t iarea, rarea, offset;
+    size_t depth, row, col;
+    size_t image_offset;
+    size_t sample_offset;
+    size_t off_row, off_col;
+    size_t off_rows, off_cols;
+
+    iarea = input_depth * input_rows * input_cols;
+    rarea = input_channels * filter_depth * filter_rows * filter_cols;
+
+#pragma omp parallel for private(j,k,l,m,n,o,p,depth,row,col,image_offset,sample_offset,offset,off_rows,off_cols) schedule(dynamic)
+    for(i=0; i<input_channels; i++){
+		off_cols = i * filter_depth * filter_rows * filter_cols;
+        for(j=0; j<filter_depth; j++){
+            for(k=0; k<filter_rows; k++){
+                for(l=0; l<filter_cols; l++){
+                    off_rows =0;
+                    for(m=0; m<count; m++){
+					    sample_offset = (i * count + m) * iarea;
+                        depth = j - pad_depth;
+                        for(n=0; n<output_depth; n++){
+                            if(is_a_ge_zero_and_a_lt_b(depth, input_depth)){
+                                row = k - pad_rows;
+                                for(o=0; o<output_rows; o++){
+                                    if(is_a_ge_zero_and_a_lt_b(row, input_rows)){
+                                        col = l - pad_cols;
+                                        for(p=0; p<output_cols; p++){
+                                            if(is_a_ge_zero_and_a_lt_b(col, input_cols)){
+                                                image_offset = depth * input_rows * input_cols + row * input_cols + col;
+                                                offset = off_rows * rarea + off_cols;
+									            column_buffer[offset] = data[sample_offset + image_offset];
+                                                off_rows++;
+                                            }
+                                            else{
+                                                offset = off_rows * rarea + off_cols;
+									            column_buffer[offset] = 0;
+                                                off_rows++;
+                                            }
+                                            col += stride_cols;
+                                        }
+                                    }
+                                    else{
+                                        for(p=0; p<output_cols; p++){
+                                            offset = off_rows * rarea + off_cols;
+                                            column_buffer[offset] = 0;
+                                            off_rows++;
+                                        }
+                                    }
+                                    row += stride_rows;
+                                }
+                            }
+                            else{
+                                for(o=0; o<output_rows; o++){
+                                    for(p=0; p<output_cols; p++){
+                                        offset = off_rows * rarea + off_cols;
+								        column_buffer[offset] = 0;
+                                        off_rows++;
+                                    }
+                                }
+                            }
+                            depth += stride_depth;
+                        }
+                    }
+                    off_cols++;
+                }
+            }
+        }
+    }
+}
+
+/* Input: (IF x FD x FR x FC) x (N x OD x OR x OC)
+ * Output: (IF) x (N x ID x IR x IC) */
+void pcnn_transform_col2im(float *data, float *column_buffer, int count,
+                           int pad_depth, int pad_rows, int pad_cols,
+                           int stride_depth, int stride_rows, int stride_cols,
+                           int input_channels, int input_depth, int input_rows, int input_cols,
+                           int output_depth, int output_rows, int output_cols,
+                           int filter_depth, int filter_rows, int filter_cols)
+{
+    size_t i,j,k,l,m,n,o,p;
+    size_t depth, row, col;
+    size_t in_off, out_off, offset;
+    const size_t iarea = input_depth * input_rows * input_cols;
+    const size_t area = (size_t)count * (size_t)output_depth * (size_t)output_rows * (size_t)output_cols *
+                        (size_t)filter_depth * (size_t)filter_rows * (size_t)filter_cols;
+
+#pragma omp parallel for private(j,k,l,m,n,o,p,depth,row,col,in_off,out_off,offset)
+	for(i=0; i<input_channels; i++){
 		in_off = i*area;
-		for(j=0; j<filter_rows; j++){
-			for(k=0; k<filter_cols; k++){
-				for(l=0; l<count; l++){
-					row = j - pad_rows;
-					out_off = (i*count+l)*input_rows*input_cols;
-					for(m=0; m<output_rows; m++){
-						if(is_a_ge_zero_and_a_lt_b(row, input_rows)){
-							col = k - pad_cols;
-							for(n=0; n<output_cols; n++){
-								if(is_a_ge_zero_and_a_lt_b(col, input_cols))
-									data[out_off + row*input_cols+col] += column_buffer[in_off];
-								in_off++;
-								col += stride_cols;
-							}
-						}
-						else{
-							in_off += output_cols;
-						}
-						row += stride_rows;
-					}
-				}
-			}
-		}
+        for(j=0; j<filter_depth; j++){
+            for(k=0; k<filter_rows; k++){
+                for(l=0; l<filter_cols; l++){
+                    for(m=0; m<count; m++){
+                        out_off = (i * count + m) * iarea;
+                        depth = j - pad_depth;
+                        for(n=0; n<output_depth; n++){
+                            if(is_a_ge_zero_and_a_lt_b(depth, input_depth)){
+                                row = k - pad_rows;
+                                for(o=0; o<output_rows; o++){
+                                    if(is_a_ge_zero_and_a_lt_b(row, input_rows)){
+                                        col = l - pad_cols;
+                                        for(p=0; p<output_cols; p++){
+                                            if(is_a_ge_zero_and_a_lt_b(col, input_cols)){
+                                                offset = out_off + (depth * input_rows * input_cols) + (row * input_cols) + col;
+                                                data[offset] += column_buffer[in_off];
+                                            }
+                                            in_off++;
+                                            col += stride_cols;
+                                        }
+                                    }
+                                    else{
+                                        in_off += output_cols;
+                                    }
+                                    row += stride_rows;
+                                }
+                            }
+                            else{
+                                in_off += (output_rows * output_cols);
+                            }
+                            depth += stride_depth;
+                        }
+                    }
+                }
+            }
+        }
 	}
 }
 
@@ -214,8 +299,8 @@ void pcnn_transform_col2im(float *data, float *column_buffer,
  */
 int pcnn_transform_rearrange(float *src, float *dest, int rows, int cols, int num_procs)
 {
-	int i,j,k;
-	int area, local_rows, local_cols;
+	size_t i,j,k;
+	size_t area, local_rows, local_cols;
 
 	local_rows = rows / num_procs;
 	local_cols = cols / num_procs;

@@ -62,10 +62,6 @@ static void pcnn_model_calc_comm_offsets(struct layer_t *layer,
     }
     else{
         layer->aligned_weight = 1; 
-        layer->sdispls_weight = NULL;
-        layer->rdispls_weight = NULL;
-        layer->scounts_weight = NULL;
-        layer->rcounts_weight = NULL;
     }
 
     /* weight + bias parameters communication data offsets */
@@ -96,10 +92,6 @@ static void pcnn_model_calc_comm_offsets(struct layer_t *layer,
     }
     else{
         layer->aligned_gradients = 1; 
-        layer->sdispls_gradients = NULL;
-        layer->rdispls_gradients = NULL;
-        layer->scounts_gradients = NULL;
-        layer->rcounts_gradients = NULL;
     }
 }
 
@@ -109,26 +101,35 @@ static void pcnn_model_init_param_values(struct param_t *param, struct model_t *
     int fan_in, fan_out;
     struct layer_t *layer;
 
-    if(queue->rank == 0){
+    if(queue->global_rank == 0){
         for(i=0; i<model->num_layers; i++){
             layer = model->layers[i];
 
             /* Calculate the standard deviation value depending on the 
             * weight initialization method. */
             if(model->param_init_method == PARAM_INIT_TYPE_MSRA){
-                fan_out = layer->output_depth * layer->filter_rows * layer->filter_cols;
+                fan_out = layer->output_channels *
+                          layer->filter_depth *
+                          layer->filter_rows *
+                          layer->filter_cols;
                 layer->std = sqrtf(2.0f / (float)fan_out);
             }
             else if(model->param_init_method == PARAM_INIT_TYPE_GLOROT){
-                fan_in = layer->input_depth * layer->filter_rows * layer->filter_cols;
-                fan_out = layer->output_depth * layer->filter_rows * layer->filter_cols;
+                fan_in = layer->input_channels *
+                         layer->filter_depth *
+                         layer->filter_rows *
+                         layer->filter_cols;
+                fan_out = layer->output_channels *
+                          layer->filter_depth *
+                          layer->filter_rows *
+                          layer->filter_cols;
                 layer->std = sqrtf(2.0f / (float)(fan_in + fan_out));
             }
 
             /* Initialize the parameters. */
             if(layer->type == LAYER_TYPE_CONV){
                 pcnn_util_gaussian(layer->filter_size, layer->mean, layer->std, layer->weight);
-                for(j=0; j<layer->output_depth; j++){
+                for(j=0; j<layer->output_channels; j++){
                     layer->bias[j] = 0;
                 }
             }
@@ -173,10 +174,8 @@ struct model_t *pcnn_model_init(int num_train_images, int num_epochs, int mode, 
     model->upsample_ratio = UPSAMPLE_RATIO;
     model->eps = EPS_FACTOR;
     model->moving_average_fraction = MOVING_AVERAGE_FRACTION;
-    model->num_lazy_layers = (model->comm_pattern == 2) ? NUM_LAZY_LAYERS : 0;
     model->checkpoint_interval = CHECKPOINT_INTERVAL;
     model->checkpoint_path = (char *)malloc(sizeof(char) * (strlen(CHECKPOINT_PATH) + 1));
-    model->b = NUM_LAZY_LAYERS;
     sprintf(model->checkpoint_path, "%s", (CHECKPOINT_PATH));
     model->param_size = 0;
     model->intermediate_size = 0;
@@ -201,7 +200,6 @@ struct model_t *pcnn_model_init(int num_train_images, int num_epochs, int mode, 
         printf("%-40s: %f\n", "Learning rate" , model->learning_rate);
         printf("%-40s: %f\n", "Learning rate decay factor" , model->decay_factor);
         printf("%-40s: %d\n", "Learning rate decay steps" , model->decay_steps);
-        printf("%-40s: %d\n", "Number of layers with lazy update" , model->num_lazy_layers);
     }
     return model;
 }
@@ -221,6 +219,10 @@ void pcnn_model_destroy(struct model_t *model)
                     free(layer->e);
                 if(layer->poolmap != NULL)
                     free(layer->poolmap);
+                if(layer->rep_a != NULL)
+                    free(layer->rep_a);
+                if(layer->rep_e != NULL)
+                    free(layer->rep_e);
                 if(layer->recv_a != NULL)
                     free(layer->recv_a);
                 if(layer->recv_e != NULL)
@@ -233,6 +235,14 @@ void pcnn_model_destroy(struct model_t *model)
                     free(layer->scounts_weight);
                 if(layer->rcounts_weight != NULL)
                     free(layer->rcounts_weight);
+                if(layer->sdispls_gradients != NULL)
+                    free(layer->sdispls_gradients);
+                if(layer->rdispls_gradients != NULL)
+                    free(layer->rdispls_gradients);
+                if(layer->scounts_gradients != NULL)
+                    free(layer->scounts_gradients);
+                if(layer->rcounts_gradients != NULL)
+                    free(layer->rcounts_gradients);
                 if(layer->batch_norm == 1){
                     if(layer->a_norm != NULL)
                         free(layer->a_norm);
@@ -263,24 +273,31 @@ void pcnn_model_init_layer(struct model_t *model, struct feeder_t *feeder, struc
     layer->ReLU = features->ReLU;
     layer->loss_type = features->loss_type;
     layer->batch_norm = features->batch_norm;
-    layer->pad = features->pad;
-    layer->stride = features->stride;
+    layer->pad_depth = features->pad_depth;
+    layer->pad_rows = features->pad_rows;
+    layer->pad_cols = features->pad_cols;
+    layer->stride_depth = features->stride_depth;
+    layer->stride_rows = features->stride_rows;
+    layer->stride_cols = features->stride_cols;
     layer->mean = features->mean;
     layer->std = features->std;
     layer->bottom_layer = features->bottom_layer;
     layer->skip_from = features->skip_from;
     layer->res_scale = features->res_scale;
-    layer->output_depth = features->output_depth;
+    layer->output_channels = features->output_channels;
+    layer->filter_depth = features->filter_depth;
     layer->filter_rows = features->filter_rows;
     layer->filter_cols = features->filter_cols;
     layer->bn_scale_factor = 0.0f;
 
     if(model->num_layers == 0){
-        layer->input_depth = features->num_channels;
-        layer->input_rows = features->num_image_rows;
-        layer->input_cols = features->num_image_cols;
+        layer->input_channels = features->num_channels;
+        layer->input_depth = features->image_depth;
+        layer->input_rows = features->image_rows;
+        layer->input_cols = features->image_cols;
     }
     else{
+        layer->input_channels = bottom->output_channels;
         layer->input_depth = bottom->output_depth;
         layer->input_rows = bottom->output_rows;
         layer->input_cols = bottom->output_cols;
@@ -288,30 +305,37 @@ void pcnn_model_init_layer(struct model_t *model, struct feeder_t *feeder, struc
 
     /* Calculate output spatial dimensions. */
     if(features->type == LAYER_TYPE_CONV){
-        layer->output_rows = ((layer->input_rows + 2*features->pad - features->filter_rows)/features->stride) + 1;
-        layer->output_cols = ((layer->input_cols + 2*features->pad - features->filter_cols)/features->stride) + 1;
+        layer->output_depth = ((layer->input_depth + 2*features->pad_depth - features->filter_depth)/features->stride_depth) + 1;
+        layer->output_rows = ((layer->input_rows + 2*features->pad_rows - features->filter_rows)/features->stride_rows) + 1;
+        layer->output_cols = ((layer->input_cols + 2*features->pad_cols - features->filter_cols)/features->stride_cols) + 1;
     }
     else if(features->type == LAYER_TYPE_POOL){
-        layer->output_rows = ceilf((float)(layer->input_rows - features->filter_rows)/features->stride) + 1;
-        layer->output_cols = ceilf((float)(layer->input_cols - features->filter_cols)/features->stride) + 1;
+        layer->output_depth = ceilf((float)(layer->input_depth - features->filter_depth)/features->stride_depth) + 1;
+        layer->output_rows = ceilf((float)(layer->input_rows - features->filter_rows)/features->stride_rows) + 1;
+        layer->output_cols = ceilf((float)(layer->input_cols - features->filter_cols)/features->stride_cols) + 1;
     }
     else if(features->type == LAYER_TYPE_FULL){
+        layer->output_depth = 1;
         layer->output_cols = 1;
         layer->output_rows = features->filter_rows; /* In a fully-connected layer, filter_rows is the number of neurons. */
     }
     else if(features->type == LAYER_TYPE_UPSAMPLE){
         layer->output_rows = layer->input_rows * model->upsample_ratio;
         layer->output_cols = layer->input_cols * model->upsample_ratio;
-        layer->output_depth = layer->input_depth / (model->upsample_ratio * model->upsample_ratio);
+        layer->output_channels = layer->input_channels / (model->upsample_ratio * model->upsample_ratio);
     }
 
-    layer->num_neurons = layer->output_depth * layer->output_rows * layer->output_cols;
-    layer->num_prev_neurons = layer->input_depth * layer->input_rows * layer->input_cols;
+    layer->num_neurons = layer->output_channels * layer->output_depth * layer->output_rows * layer->output_cols;
+    layer->num_prev_neurons = layer->input_channels * layer->input_depth * layer->input_rows * layer->input_cols;
 
     /* weight offset and length calculation */
     if(layer->type == LAYER_TYPE_CONV){
-        layer->filter_size = layer->output_depth * layer->input_depth * layer->filter_rows * layer->filter_cols;
-        layer->bias_size = layer->output_depth;
+        layer->filter_size = layer->output_channels *
+                             layer->input_channels *
+                             layer->filter_depth *
+                             layer->filter_rows *
+                             layer->filter_cols;
+        layer->bias_size = layer->output_channels;
         layer->num_gradients = layer->filter_size + layer->bias_size;
     }
     else if(layer->type == LAYER_TYPE_FULL){
@@ -329,6 +353,8 @@ void pcnn_model_init_layer(struct model_t *model, struct feeder_t *feeder, struc
     layer->a = NULL;
     layer->e = NULL;
     layer->poolmap = NULL;
+    layer->rep_a = NULL;
+    layer->rep_e = NULL;
     layer->recv_a = NULL;
     layer->recv_e = NULL;
     layer->a_norm = NULL;
@@ -337,21 +363,28 @@ void pcnn_model_init_layer(struct model_t *model, struct feeder_t *feeder, struc
     layer->global_variance = NULL;
     layer->gamma = NULL;
     layer->beta = NULL;
+    layer->sdispls_weight = NULL;
+    layer->rdispls_weight = NULL;
+    layer->scounts_weight = NULL;
+    layer->rcounts_weight = NULL;
+    layer->sdispls_gradients = NULL;
+    layer->rdispls_gradients = NULL;
+    layer->scounts_gradients = NULL;
+    layer->rcounts_gradients = NULL;
 
     if(layer->type == LAYER_TYPE_FULL){
         layer->a = (float *)calloc(feeder->local_batch_size * layer->num_neurons, sizeof(float));
-        layer->rep_a = (float *)calloc(feeder->local_batch_size * layer->num_neurons, sizeof(float));
-        layer->recv_a = (float *)calloc(feeder->local_batch_size * layer->num_neurons, sizeof(float));
-
         layer->e = (float *)calloc(layer->num_neurons * feeder->batch_size, sizeof(float));
         layer->rep_e = (float *)calloc(layer->num_neurons * feeder->batch_size, sizeof(float));
         layer->recv_e = (float *)calloc(layer->num_neurons * feeder->batch_size, sizeof(float));
+
+        if(bottom != NULL){
+            bottom->rep_a = (float *)calloc(feeder->local_batch_size * bottom->num_neurons, sizeof(float));
+            bottom->recv_a = (float *)calloc(feeder->local_batch_size * bottom->num_neurons, sizeof(float));
+        }
     }
     else if(layer->type == LAYER_TYPE_POOL){
         layer->a = (float *)calloc(feeder->local_batch_size * layer->num_neurons, sizeof(float));
-        layer->rep_a = (float *)calloc(feeder->local_batch_size * layer->num_neurons, sizeof(float));
-        layer->recv_a = (float *)calloc(feeder->local_batch_size * layer->num_neurons, sizeof(float));
-
         layer->e = (float *)calloc(feeder->local_batch_size * layer->num_neurons, sizeof(float));
         layer->poolmap = (int *)calloc(feeder->local_batch_size * layer->num_neurons, sizeof(int));
     }
@@ -390,8 +423,8 @@ void pcnn_model_init_layer(struct model_t *model, struct feeder_t *feeder, struc
         if(layer->batch_norm){
             mem_size += feeder->local_batch_size * layer->num_neurons; // a_norm
             mem_size += feeder->local_batch_size * layer->num_neurons; // sqrt_var
-            mem_size += layer->output_depth; // gamma
-            mem_size += layer->output_depth; // beta
+            mem_size += layer->output_channels; // gamma
+            mem_size += layer->output_channels; // beta
         }
     }
     else if(layer->type == LAYER_TYPE_UPSAMPLE){
@@ -406,23 +439,23 @@ void pcnn_model_init_layer(struct model_t *model, struct feeder_t *feeder, struc
 
 struct param_t *pcnn_model_init_param(struct model_t *model, struct feeder_t *feeder, struct comm_queue_t *queue)
 {
-    int i=0, j=0;
-    int rows=0;
-    int cols=0;
-    int count=0;
-    int offset=0;
-    int accum_size=0;
-    int max_size=0;
-    int this_layer_max=0;
-    int pool2full_size=0;
-    int conv_weight_size=0;
-    int conv_bias_size=0;
-    int conv_total_size=0;
-    int full_weight_size=0;
-    int full_bias_size=0;
-    int full_total_size=0;
-    int total_size=0;
-    int bn_param_size=0;
+    size_t i=0, j=0;
+    size_t rows=0;
+    size_t cols=0;
+    size_t count=0;
+    size_t offset=0;
+    size_t accum_size=0;
+    size_t max_size=0;
+    size_t this_layer_max=0;
+    size_t pool2full_size=0;
+    size_t conv_weight_size=0;
+    size_t conv_bias_size=0;
+    size_t conv_total_size=0;
+    size_t full_weight_size=0;
+    size_t full_bias_size=0;
+    size_t full_total_size=0;
+    size_t total_size=0;
+    size_t bn_param_size=0;
     struct param_t *param=NULL;
     struct layer_t *layer=NULL;
 
@@ -433,8 +466,12 @@ struct param_t *pcnn_model_init_param(struct model_t *model, struct feeder_t *fe
         layer = model->layers[i];
 
         if(layer->type == LAYER_TYPE_CONV){
-            conv_weight_size += layer->output_depth * layer->input_depth * layer->filter_rows * layer->filter_cols; /* weight parameters */
-            conv_bias_size += layer->output_depth; /* bias parameters */
+            conv_weight_size += (layer->output_channels *
+                                 layer->input_channels *
+                                 layer->filter_depth *
+                                 layer->filter_rows *
+                                 layer->filter_cols);
+            conv_bias_size += layer->output_channels; /* bias parameters */
         }
         else if(layer->type == LAYER_TYPE_FULL){
             full_weight_size += layer->num_neurons * layer->num_prev_neurons;
@@ -450,8 +487,8 @@ struct param_t *pcnn_model_init_param(struct model_t *model, struct feeder_t *fe
     for(i=0; i<model->num_layers; i++){
         layer = model->layers[i];
         if(layer->type == LAYER_TYPE_CONV && layer->batch_norm == 1){
-            bn_param_size += layer->output_depth; // gamma
-            bn_param_size += layer->output_depth; // beta
+            bn_param_size += layer->output_channels; // gamma
+            bn_param_size += layer->output_channels; // beta
         }
     }
 
@@ -467,9 +504,6 @@ struct param_t *pcnn_model_init_param(struct model_t *model, struct feeder_t *fe
     param->num_trained_epochs = 0;
     param->beta1_decay = 1.f;
     param->beta2_decay = 1.f;
-    param->num_lazy_updates = 0;
-    param->num_accumulated = 0;
-    param->interval = 1;
 
     /* Allocate memory spaces for parameters and gradients. 
      * Here, we need at least four sets of full-sized memory space:
@@ -513,7 +547,11 @@ struct param_t *pcnn_model_init_param(struct model_t *model, struct feeder_t *fe
                 layer->m_sumws = &param->m_gradient_sums[offset];
                 layer->v_sumws = &param->v_gradient_sums[offset];
             }
-            offset += layer->output_depth * layer->input_depth * layer->filter_rows * layer->filter_cols;
+            offset += (layer->output_channels *
+                       layer->input_channels *
+                       layer->filter_depth *
+                       layer->filter_rows *
+                       layer->filter_cols);
 
             layer->bias = &param->params[offset];
             layer->local_sumbs = &param->gradients[offset];
@@ -525,7 +563,7 @@ struct param_t *pcnn_model_init_param(struct model_t *model, struct feeder_t *fe
                 layer->m_sumbs = &param->m_gradient_sums[offset];
                 layer->v_sumbs = &param->v_gradient_sums[offset];
             }
-            offset += layer->output_depth;
+            offset += layer->output_channels;
         }
         else if(layer->type == LAYER_TYPE_FULL){
             layer->weight = &param->params[offset];
@@ -551,32 +589,6 @@ struct param_t *pcnn_model_init_param(struct model_t *model, struct feeder_t *fe
                 layer->v_sumbs = &param->v_gradient_sums[offset];
             }
             offset += layer->num_neurons;
-        }
-    }
-
-    /* lazy update */
-    accum_size = 0;
-    for(i=0; i<model->num_lazy_layers; i++){
-        layer = model->layers[i];
-        if(layer->type == LAYER_TYPE_CONV){
-            accum_size += layer->num_gradients;
-            layer->sub_type = 1;
-        }
-    }
-
-    if(accum_size > 0){
-        param->local_accum = (float *)calloc(accum_size, sizeof(float));
-        param->global_accum = (float *)calloc(accum_size, sizeof(float));
-        param->total_accum_size = accum_size;
-    }
-
-    offset = 0;
-    for(i=0; i<model->num_lazy_layers; i++){
-        layer = model->layers[i];
-        if(layer->type == LAYER_TYPE_CONV){
-            layer->local_accum = &param->local_accum[offset];
-            layer->global_accum = &param->global_accum[offset];
-            offset += layer->num_gradients;
         }
     }
 
@@ -609,13 +621,13 @@ struct param_t *pcnn_model_init_param(struct model_t *model, struct feeder_t *fe
             if(layer->type == LAYER_TYPE_CONV && layer->batch_norm == 1){
                 /* gamma (scaling parameters) */
                 layer->gamma = &param->bn_params[offset];
-                offset += layer->output_depth;
-                for(j=0; j<layer->output_depth; j++)
+                offset += layer->output_channels;
+                for(j=0; j<layer->output_channels; j++)
                     layer->gamma[j] = 1.0f;
 
                 /* beta (shift parameters) */
                 layer->beta = &param->bn_params[offset];
-                offset += layer->output_depth;
+                offset += layer->output_channels;
             }
         }
 
@@ -626,7 +638,7 @@ struct param_t *pcnn_model_init_param(struct model_t *model, struct feeder_t *fe
             layer = model->layers[i];
             if(layer->type == LAYER_TYPE_CONV && layer->batch_norm == 1){
                 layer->local_dgamma = &param->bn_gradients[offset];
-                offset += layer->output_depth;
+                offset += layer->output_channels;
             }
         }
 
@@ -636,7 +648,7 @@ struct param_t *pcnn_model_init_param(struct model_t *model, struct feeder_t *fe
             layer = model->layers[i];
             if(layer->type == LAYER_TYPE_CONV && layer->batch_norm == 1){
                 layer->local_dbeta = &param->bn_gradients[offset];
-                offset += layer->output_depth;
+                offset += layer->output_channels;
             }
         }
 
@@ -647,7 +659,7 @@ struct param_t *pcnn_model_init_param(struct model_t *model, struct feeder_t *fe
                 layer = model->layers[i];
                 if(layer->type == LAYER_TYPE_CONV && layer->batch_norm == 1){
                     layer->prev_dgamma = &param->bn_prev_gradients[offset];
-                    offset += layer->output_depth;
+                    offset += layer->output_channels;
                 }
             }
 
@@ -655,7 +667,7 @@ struct param_t *pcnn_model_init_param(struct model_t *model, struct feeder_t *fe
                 layer = model->layers[i];
                 if(layer->type == LAYER_TYPE_CONV && layer->batch_norm == 1){
                     layer->prev_dbeta = &param->bn_prev_gradients[offset];
-                    offset += layer->output_depth;
+                    offset += layer->output_channels;
                 }
             }
         }
@@ -666,7 +678,7 @@ struct param_t *pcnn_model_init_param(struct model_t *model, struct feeder_t *fe
                 if(layer->type == LAYER_TYPE_CONV && layer->batch_norm == 1){
                     layer->m_dgamma = &param->bn_m_gradients[offset];
                     layer->v_dgamma = &param->bn_v_gradients[offset];
-                    offset += layer->output_depth;
+                    offset += layer->output_channels;
                 }
             }
 
@@ -675,7 +687,7 @@ struct param_t *pcnn_model_init_param(struct model_t *model, struct feeder_t *fe
                 if(layer->type == LAYER_TYPE_CONV && layer->batch_norm == 1){
                     layer->m_dbeta = &param->bn_m_gradients[offset];
                     layer->v_dbeta = &param->bn_v_gradients[offset];
-                    offset += layer->output_depth;
+                    offset += layer->output_channels;
                 }
             }
         }
@@ -692,7 +704,7 @@ struct param_t *pcnn_model_init_param(struct model_t *model, struct feeder_t *fe
                 layer = model->layers[i];
                 if(layer->type == LAYER_TYPE_CONV && layer->batch_norm == 1){
                     layer->global_dgamma = &param->bn_gradient_sums[offset];
-                    offset += layer->output_depth;
+                    offset += layer->output_channels;
                 }
             }
 
@@ -702,7 +714,7 @@ struct param_t *pcnn_model_init_param(struct model_t *model, struct feeder_t *fe
                 layer = model->layers[i];
                 if(layer->type == LAYER_TYPE_CONV && layer->batch_norm == 1){
                     layer->global_dbeta = &param->bn_gradient_sums[offset];
-                    offset += layer->output_depth;
+                    offset += layer->output_channels;
                 }
             }
         }
@@ -714,10 +726,16 @@ struct param_t *pcnn_model_init_param(struct model_t *model, struct feeder_t *fe
         layer = model->layers[i];
 
         if(layer->type == LAYER_TYPE_CONV){
-            rows = feeder->local_batch_size * layer->output_rows * layer->output_cols;
-            cols = layer->input_depth * layer->filter_rows * layer->filter_cols;
+            rows = feeder->local_batch_size *
+                   layer->output_depth *
+                   layer->output_rows *
+                   layer->output_cols;
+            cols = layer->input_channels *
+                   layer->filter_depth *
+                   layer->filter_rows *
+                   layer->filter_cols;
 
-            this_layer_max = (rows * cols > layer->filter_size) ? rows * cols : layer->filter_size;
+            this_layer_max = rows * cols;
             if(max_size < this_layer_max)
                 max_size = this_layer_max;
         }
@@ -738,7 +756,11 @@ struct param_t *pcnn_model_init_param(struct model_t *model, struct feeder_t *fe
      * the last pooling layer and the first fully-connected layer. */
     if(param->first_full_id > -1){
         layer = model->layers[param->first_full_id-1];
-        pool2full_size = layer->output_depth * layer->output_rows * layer->output_cols * feeder->local_batch_size;
+        pool2full_size = layer->output_channels *
+                         layer->output_depth *
+                         layer->output_rows *
+                         layer->output_cols *
+                         feeder->local_batch_size;
         param->pool2full = (float *)calloc(pool2full_size, sizeof(float));
     }
 
@@ -752,18 +774,16 @@ struct param_t *pcnn_model_init_param(struct model_t *model, struct feeder_t *fe
     param->sums = NULL;
 
     max_size = 0;
+    
     for(i=0; i<model->num_layers; i++){
         layer =model->layers[i];
         if(layer->type == LAYER_TYPE_CONV){
-            if(max_size < layer->output_rows * layer->output_cols * layer->output_depth)
-                max_size = layer->output_rows * layer->output_cols * layer->output_depth;
-            if(max_size < layer->output_rows * layer->output_cols * feeder->local_batch_size)
-                max_size = layer->output_rows * layer->output_cols * feeder->local_batch_size;
+            if(max_size < layer->output_rows * layer->output_cols * layer->output_depth * layer->output_channels * feeder->local_batch_size)
+                max_size = layer->output_rows * layer->output_cols * layer->output_depth * layer->output_channels * feeder->local_batch_size;
         }
     }
 
     if(max_size > 0){
-        max_size *= feeder->local_batch_size;
         param->multiplier = (float *)malloc(sizeof(float) * max_size);
 #pragma omp parallel for
         for(i=0; i<max_size; i++)
@@ -778,9 +798,9 @@ struct param_t *pcnn_model_init_param(struct model_t *model, struct feeder_t *fe
         layer =model->layers[i];
         if(layer->type == LAYER_TYPE_CONV && layer->batch_norm){
             param->bn_num_layers++;
-            count += layer->output_depth;
-            if(max_size < layer->output_depth)
-                max_size = layer->output_depth;
+            count += layer->output_channels;
+            if(max_size < layer->output_channels)
+                max_size = layer->output_channels;
         }
     }
 
@@ -799,7 +819,7 @@ struct param_t *pcnn_model_init_param(struct model_t *model, struct feeder_t *fe
         layer = model->layers[i];
         if(layer->type == LAYER_TYPE_CONV && layer->batch_norm == 1){
             layer->global_mean = &param->bn_global_statistics[offset];
-            offset += layer->output_depth;
+            offset += layer->output_channels;
         }
     }
 
@@ -808,7 +828,7 @@ struct param_t *pcnn_model_init_param(struct model_t *model, struct feeder_t *fe
         layer = model->layers[i];
         if(layer->type == LAYER_TYPE_CONV && layer->batch_norm == 1){
             layer->global_variance = &param->bn_global_statistics[offset];
-            offset += layer->output_depth;
+            offset += layer->output_channels;
         }
     }
 
@@ -827,10 +847,6 @@ void pcnn_model_free_param(struct model_t *model, struct param_t *param)
     }
 
     if(param != NULL){
-        if(param->local_accum != NULL)
-            free(param->local_accum);
-        if(param->global_accum != NULL)
-            free(param->global_accum);
         if(param->prev_gradient_sums != NULL)
             free(param->prev_gradient_sums);
         if(param->m_gradient_sums != NULL)
@@ -1127,14 +1143,20 @@ void pcnn_model_get_default_features(struct feature_t *features)
     features->ReLU = 0;
     features->loss_type = LOSS_TYPE_NONE;
     features->batch_norm = 0;
-    features->output_depth = 0;
+    features->output_channels = 0;
+    features->filter_depth = 1;
     features->filter_rows = 0;
     features->filter_cols = 0;
     features->num_channels = 0;
-    features->num_image_rows = 0;
-    features->num_image_cols = 0;
-    features->pad = 0;
-    features->stride = 0;
+    features->image_depth = 1;
+    features->image_rows = 0;
+    features->image_cols = 0;
+    features->pad_depth = 0;
+    features->pad_rows = 0;
+    features->pad_cols = 0;
+    features->stride_depth = 1;
+    features->stride_rows = 1;
+    features->stride_cols = 1;
     features->mean = 0.0f;
     features->std = 0.0f;
     features->bottom_layer = -1;
@@ -1234,108 +1256,4 @@ void pcnn_model_put_momentum_together(struct model_t *model, struct param_t *par
         else
             continue;
     }
-}
-
-void pcnn_model_update_interval_layer(int id, struct model_t *model, struct param_t *param, struct comm_queue_t *queue)
-{
-    int i;
-    struct layer_t *layer;
-    float var, norm_f, norm_g;
-    float *accum, *grads;
-    int angle, magnitude;
-
-    angle = 0;
-    magnitude = 0;
-
-    layer = model->layers[id];
-    if(layer->type != LAYER_TYPE_CONV || layer->sub_type != 1){
-        printf("[%s][%d] Invalid bottom layer for lazy update interval update!\n", __FUNCTION__, __LINE__);
-        return;
-    }
-
-    accum = (queue->nproc > 1) ? layer->global_accum : layer->local_accum;
-    grads = (queue->nproc > 1) ? layer->global_sumws : layer->local_sumws;
-
-    var = 0;
-#pragma omp parallel for reduction(+:var)
-    for(i=0; i<layer->num_gradients; i++){
-        var += powf(grads[i] - accum[i], 2);
-    }
-
-    norm_f = cblas_snrm2(layer->num_gradients, grads, 1);
-    norm_f = powf(norm_f, 2);
-
-    norm_g = cblas_snrm2(layer->num_gradients, accum, 1);
-    norm_g = powf(norm_g, 2);
-
-    if((var + norm_f) <= norm_g)
-        angle = 1;
-
-    if(norm_f * param->num_accumulated <= norm_g)
-        magnitude = 1;
-
-    if(angle == 1 && magnitude == 1)
-        param->interval++;
-    else if (angle == 0 && magnitude == 0)
-        param->interval = (param->interval == 1) ? 1 : param->interval - 1;
-
-#if DEBUG
-    printf("var: %f norm_f: %f norm_g: %f interval: %d\n", var, norm_f, norm_g, param->interval);
-
-    if(queue->rank == 0){
-        FILE *fd;
-        fd = fopen("lazy_interval.txt", "a");
-        fprintf(fd, "%d\n", param->interval);
-        fclose(fd);
-    }
-#endif
-}
-
-void pcnn_model_update_interval_model(struct model_t *model, struct param_t *param, struct comm_queue_t *queue)
-{
-    int i,j;
-    int num_violated;
-    struct layer_t *layer;
-    float var, norm_f, norm_g;
-    float *accum, *grads;
-
-    num_violated = 0;
-    for(i=0; i<model->b; i++){
-        layer = model->layers[i];
-        if(layer->type != LAYER_TYPE_CONV || layer->sub_type != 1)
-            continue;
-
-        accum = (queue->nproc > 1) ? layer->global_accum : layer->local_accum;
-        grads = (queue->nproc > 1) ? layer->global_sumws : layer->local_sumws;
-
-        var = 0;
-#pragma omp parallel for reduction(+:var)
-        for(j=0; j<layer->num_gradients; j++)
-            var += powf(grads[j] - accum[j], 2);
-
-        norm_f = cblas_snrm2(layer->num_gradients, grads, 1);
-        norm_f = powf(norm_f, 2);
-
-        norm_g = cblas_snrm2(layer->num_gradients, accum, 1);
-        norm_g = powf(norm_g, 2);
-
-        if((var + norm_f) > norm_g)
-            num_violated++;
-    }
-
-    if(num_violated == 0)
-        param->interval++;
-    else if(num_violated > 0.5 * model->b)
-        param->interval = (param->interval == 1) ? 1 : param->interval - 1;
-
-#if DEBUG
-    printf("num_violated: %d model->b: %d param->interval: %d\n", num_violated, model->b, param->interval);
-
-    if(queue->rank == 0){
-        FILE *fd;
-        fd = fopen("lazy_interval.txt", "a");
-        fprintf(fd, "%d\n", param->interval);
-        fclose(fd);
-    }
-#endif
 }

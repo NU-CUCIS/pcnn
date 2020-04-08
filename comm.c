@@ -41,6 +41,8 @@ struct comm_queue_t *pcnn_comm_init(int num_groups, int sync_interval)
     queue->num_groups = num_groups;
     queue->sync_interval = sync_interval;
     queue->world = MPI_COMM_WORLD;
+    MPI_Comm_rank(queue->world, &queue->global_rank);
+    MPI_Comm_size(queue->world, &queue->global_nproc);
 
     /* The flags for synchronizing between communication thread and 
      * computation thread. */
@@ -132,10 +134,12 @@ int pcnn_comm_insert_req(struct model_t *model, struct comm_queue_t *queue, stru
         queue->flag_reduce_g[req->layer_id] = 1;
     else if(req->type == COMM_TYPE_REDUCE_P)
         queue->flag_reduce_p[req->layer_id] = 1;
-    else if(req->type == COMM_TYPE_REDUCE_AG)
-        queue->flag_reduce_ag = 1;
     else if(req->type == COMM_TYPE_REDUCE_L)
         queue->flag_reduce_l = 1;
+    else if(req->type == COMM_TYPE_REDUCE_CONV_PARAM)
+        queue->flag_reduce_p[req->layer_id] = 1;
+    else if(req->type == COMM_TYPE_REDUCE_FULL_PARAM)
+        queue->flag_reduce_p[req->layer_id] = 1;
     else if(req->type == COMM_TYPE_GATHER_E)
         queue->flag_gather_e[req->layer_id] = 1;
     else if(req->type == COMM_TYPE_ALL2ALL_A)
@@ -252,16 +256,56 @@ void *pcnn_comm_thread(void *ptr)
             pthread_mutex_unlock(&queue->mut);
             pthread_cond_signal(&queue->cond);
         }
-        else if(type == COMM_TYPE_REDUCE_AG){
-            MPI_Allreduce(param->local_accum,
-                          param->global_accum,
-                          param->total_accum_size,
+        else if(type == COMM_TYPE_REDUCE_CONV_PARAM){
+            layer = model->layers[layer_id];
+
+            if(layer->aligned_gradients){
+                length = layer->num_local_gradients;
+                offset = layer->num_local_gradients * queue->rank;
+            }
+            else{
+                length = layer->scounts_gradients[queue->rank];
+                offset = layer->sdispls_gradients[queue->rank];
+            }
+            MPI_Allreduce(&layer->weight[offset], 
+                          layer->global_sumws, 
+                          length,
                           MPI_FLOAT, 
                           MPI_SUM, 
-                          queue->comm);
+                          queue->across);
 
             pthread_mutex_lock(&queue->mut);
-            queue->flag_reduce_ag = 0;
+            queue->flag_reduce_p[layer_id] = 0;
+            pthread_mutex_unlock(&queue->mut);
+            pthread_cond_signal(&queue->cond);
+        }
+        else if(type == COMM_TYPE_REDUCE_FULL_PARAM){
+            layer = model->layers[layer_id];
+
+            if(layer->aligned_weight){
+                length = layer->local_weight_count;
+                offset = layer->local_weight_count * queue->rank;
+            }
+            else{
+                length = layer->scounts_weight[queue->rank];
+                offset = layer->sdispls_weight[queue->rank];
+            }
+            MPI_Allreduce(&layer->weight[offset], 
+                          layer->global_sumws, 
+                          length,
+                          MPI_FLOAT, 
+                          MPI_SUM, 
+                          queue->across);
+
+            MPI_Allreduce(layer->bias, 
+                          layer->global_sumbs, 
+                          layer->bias_size,
+                          MPI_FLOAT, 
+                          MPI_SUM, 
+                          queue->across);
+
+            pthread_mutex_lock(&queue->mut);
+            queue->flag_reduce_p[layer_id] = 0;
             pthread_mutex_unlock(&queue->mut);
             pthread_cond_signal(&queue->cond);
         }
@@ -297,7 +341,7 @@ void *pcnn_comm_thread(void *ptr)
         }
         else if(type == COMM_TYPE_ALL2ALL_A){
             layer = model->layers[layer_id];
-            send_buf = (layer->type == LAYER_TYPE_POOL) ? param->pool2full : layer->a;
+            send_buf = (layer->type == LAYER_TYPE_FULL) ? layer->a : param->pool2full;
             length = layer->num_neurons * feeder->local_batch_size / queue->nproc;
 
             MPI_Alltoall(send_buf,

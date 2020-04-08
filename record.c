@@ -93,8 +93,6 @@ int pcnn_record_checkpoint(struct param_t *param, struct model_t *model, struct 
                     fwrite(param->bn_v_gradients, sizeof(float), param->bn_param_size, fd);
                 }
             }
-            /* Write the previous lazy update interval. */
-            fwrite(&param->interval, sizeof(int), 1, fd);
 
             fclose(fd);
         }
@@ -300,13 +298,6 @@ int pcnn_record_continue_training(char *bin_path, struct param_t *param, struct 
         }
     }
 
-    ret = fread(&param->interval, sizeof(int), 1, fd);
-    if(ret != 1){
-        printf("[%s][%d] fread failed.\n", __FUNCTION__, __LINE__);
-        fclose(fd);
-        return -1;
-    }
-    
     fclose(fd);
     return 0;
 }

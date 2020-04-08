@@ -33,10 +33,10 @@ void pcnn_residual_ff(struct layer_t *right, struct model_t *model, struct feede
          * The images are stored as BDHW order while the convolution layer activations
          * are stored as DBHW. */
 #pragma omp parallel for private(j, k, l, src_index, dst_index)
-        for (i = 0; i < right->output_depth; i++) {
+        for (i = 0; i < right->output_channels; i++) {
             dst_index = i * feeder->local_batch_size * right->output_rows * right->output_cols;
             for (j = 0; j < feeder->local_batch_size; j++) {
-                src_index = (queue->rank * feeder->local_batch_size + j) * right->output_depth + i;
+                src_index = (queue->rank * feeder->local_batch_size + j) * right->output_channels + i;
                 src_index *= (right->output_rows * right->output_cols);
                 for (k = 0; k < right->output_rows; k++) {
                     for (l = 0; l < right->output_cols; l++) {

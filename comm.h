@@ -33,6 +33,8 @@ struct comm_queue_t{
     int num_groups;
     int rank;
     int nproc;
+    int global_rank;
+    int global_nproc;
     int group_id;
     int sync_interval;
     MPI_Comm comm;

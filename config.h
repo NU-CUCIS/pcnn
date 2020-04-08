@@ -17,8 +17,8 @@
 #define ADAM_EPSILON 1e-8
 /********** Hyper-parameter settings **********/
 #define BATCH_SIZE 128
-#define LEARNING_RATE 0.1
-#define LEARNING_RATE_DECAY_STEPS 80
+#define LEARNING_RATE 0.282843
+#define LEARNING_RATE_DECAY_STEPS 250
 #define LEARNING_RATE_DECAY_FACTOR 0.1f
 /********** Parameter initialization **********
  * 0: Constant
@@ -27,7 +27,7 @@
  * Weight parameters are initialized with Gaussian N(0, sqrt(2/fan_in))
  * 2: Glorot normal method
  * Weight parameters are initialized with Gaussian N(0, sqrt(6/(fan_in + fan_out))) */
-#define PARAM_INIT_METHOD 1
+#define PARAM_INIT_METHOD 2
 /********** Batch normalization parameters ****/
 #define EPS_FACTOR 0.00001
 #define MOVING_AVERAGE_FRACTION 0.999
@@ -49,7 +49,6 @@
  *     1: overlap communication with computation */
 #define COMM_PATTERN 1
 #define OVERLAP 1
-#define NUM_LAZY_LAYERS 8
 /********** Model settings ********************/
 #define MNIST_MODEL 0
 #define CIFAR10_MODEL 0

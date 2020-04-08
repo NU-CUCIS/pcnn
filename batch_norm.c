@@ -54,8 +54,8 @@ static void pcnn_bn_normalize_ff(int op, struct layer_t *layer, struct model_t *
     int m, n, k;
     int incx, incy;
 
-    mean = (float *)malloc(sizeof(float) * layer->output_depth);
-    variance = (float *)malloc(sizeof(float) * layer->output_depth);
+    mean = (float *)malloc(sizeof(float) * layer->output_channels);
+    variance = (float *)malloc(sizeof(float) * layer->output_channels);
 
     scale = 1.0f / (feeder->local_batch_size * layer->output_rows * layer->output_cols);
 
@@ -64,7 +64,7 @@ static void pcnn_bn_normalize_ff(int op, struct layer_t *layer, struct model_t *
         a = layer->a;
         x = param->multiplier;
         y = mean;
-        m = layer->output_depth;
+        m = layer->output_channels;
         n = feeder->local_batch_size * layer->output_rows * layer->output_cols;
         alpha = scale;
         beta = 0.0f;
@@ -76,7 +76,7 @@ static void pcnn_bn_normalize_ff(int op, struct layer_t *layer, struct model_t *
     else{
         bn_scale_factor = (float)1.0f / layer->bn_scale_factor;
 #pragma omp parallel for
-        for(i=0; i<layer->output_depth; i++){
+        for(i=0; i<layer->output_channels; i++){
             mean[i] = layer->global_mean[i] * bn_scale_factor;
         }
     }
@@ -85,7 +85,7 @@ static void pcnn_bn_normalize_ff(int op, struct layer_t *layer, struct model_t *
     a = mean;
     b = param->multiplier;
     c = param->sums;
-    m = layer->output_depth;
+    m = layer->output_channels;
     n = feeder->local_batch_size;
     k = 1;
     alpha = 1.0f;
@@ -98,7 +98,7 @@ static void pcnn_bn_normalize_ff(int op, struct layer_t *layer, struct model_t *
     a = param->sums;
     b = param->multiplier;
     c = layer->a;
-    m = layer->output_depth * feeder->local_batch_size;
+    m = layer->output_channels * feeder->local_batch_size;
     n = layer->output_rows * layer->output_cols;
     k = 1;
     alpha = -1.0f;
@@ -117,7 +117,7 @@ static void pcnn_bn_normalize_ff(int op, struct layer_t *layer, struct model_t *
         a = layer->sqrt_var;
         x = param->multiplier;
         y = variance;
-        m = layer->output_depth;
+        m = layer->output_channels;
         n = feeder->local_batch_size * layer->output_rows * layer->output_cols;
         alpha = scale;
         beta = 0.0f;
@@ -131,7 +131,7 @@ static void pcnn_bn_normalize_ff(int op, struct layer_t *layer, struct model_t *
         layer->bn_scale_factor *= model->moving_average_fraction;
         layer->bn_scale_factor += 1;
 
-        n = layer->output_depth;
+        n = layer->output_channels;
         alpha = 1.0f;
         beta = model->moving_average_fraction;
         x = mean;
@@ -143,7 +143,7 @@ static void pcnn_bn_normalize_ff(int op, struct layer_t *layer, struct model_t *
         m = feeder->local_batch_size * layer->output_rows * layer->output_cols;
         variance_correction_factor = (m > 1) ? (float)(m)/(m-1) : 1;
 
-        n = layer->output_depth;
+        n = layer->output_channels;
         alpha = variance_correction_factor;
         beta = model->moving_average_fraction;
         x = variance;
@@ -155,13 +155,13 @@ static void pcnn_bn_normalize_ff(int op, struct layer_t *layer, struct model_t *
     else{
         bn_scale_factor = (float)1.0f / layer->bn_scale_factor;
 #pragma omp parallel for
-        for(i=0; i<layer->output_depth; i++){
+        for(i=0; i<layer->output_channels; i++){
             variance[i] = layer->global_variance[i] * bn_scale_factor;
         }
     }
 
 #pragma omp parallel for
-    for(i=0; i<layer->output_depth; i++){
+    for(i=0; i<layer->output_channels; i++){
         variance[i] += model->eps;
         variance[i] = sqrtf(variance[i]);
     }
@@ -169,7 +169,7 @@ static void pcnn_bn_normalize_ff(int op, struct layer_t *layer, struct model_t *
     a = variance;
     b = param->multiplier;
     c = param->sums;
-    m = layer->output_depth;
+    m = layer->output_channels;
     n = feeder->local_batch_size;
     k = 1;
     alpha = 1.0f;
@@ -182,7 +182,7 @@ static void pcnn_bn_normalize_ff(int op, struct layer_t *layer, struct model_t *
     a = param->sums;
     b = param->multiplier;
     c = layer->sqrt_var;
-    m = layer->output_depth * feeder->local_batch_size;
+    m = layer->output_channels * feeder->local_batch_size;
     n = layer->output_rows * layer->output_cols;
     k = 1;
     alpha = 1.0f;
@@ -215,12 +215,12 @@ static void pcnn_bn_scale_shift_ff(struct layer_t *layer, struct model_t *model,
     area = feeder->local_batch_size * layer->output_rows * layer->output_cols;
 
     /* Multiply gamma first (scaling). */
-    for (i = 0; i < layer->output_depth; i++)
+    for (i = 0; i < layer->output_channels; i++)
         cblas_sscal(area, layer->gamma[i], &layer->a[i * area], 1);
 
     /* Then, add beta (shifting). */
 #pragma omp parallel for private(j, beta)
-    for (i = 0; i < layer->output_depth; i++) {
+    for (i = 0; i < layer->output_channels; i++) {
         beta = layer->beta[i];
         for (j = 0; j < area; j++) {
             layer->a[i * area + j] += beta;
@@ -254,7 +254,7 @@ static void pcnn_bn_normalize_bp(struct layer_t *layer, struct model_t *model, s
     a = layer->e;
     x = param->multiplier;
     y = param->sums;
-    m = feeder->local_batch_size * layer->output_depth;
+    m = feeder->local_batch_size * layer->output_channels;
     n = layer->output_rows * layer->output_cols;
     alpha = 1.0f;
     beta = 0.0f;
@@ -266,7 +266,7 @@ static void pcnn_bn_normalize_bp(struct layer_t *layer, struct model_t *model, s
     a = param->sums;
     x = param->multiplier;
     y = mean;
-    m = layer->output_depth;
+    m = layer->output_channels;
     n = feeder->local_batch_size;
     alpha = 1.0f;
     beta = 0.0f;
@@ -279,7 +279,7 @@ static void pcnn_bn_normalize_bp(struct layer_t *layer, struct model_t *model, s
     a = mean;
     b = param->multiplier;
     c = param->sums;
-    m = layer->output_depth;
+    m = layer->output_channels;
     n = feeder->local_batch_size;
     k = 1;
     alpha = 1.0f;
@@ -292,7 +292,7 @@ static void pcnn_bn_normalize_bp(struct layer_t *layer, struct model_t *model, s
     a = param->sums;
     b = param->multiplier;
     c = layer->e;
-    m = layer->output_depth * feeder->local_batch_size;
+    m = layer->output_channels * feeder->local_batch_size;
     n = layer->output_rows * layer->output_cols;
     k = 1;
     alpha = 1.0f;
@@ -309,7 +309,7 @@ static void pcnn_bn_normalize_bp(struct layer_t *layer, struct model_t *model, s
     a = temp;
     x = param->multiplier;
     y = param->sums;
-    m = feeder->local_batch_size * layer->output_depth;
+    m = feeder->local_batch_size * layer->output_channels;
     n = layer->output_rows * layer->output_cols;
     alpha = 1.0f;
     beta = 0.0f;
@@ -321,7 +321,7 @@ static void pcnn_bn_normalize_bp(struct layer_t *layer, struct model_t *model, s
     a = param->sums;
     x = param->multiplier;
     y = mean;
-    m = layer->output_depth;
+    m = layer->output_channels;
     n = feeder->local_batch_size;
     alpha = 1.0f;
     beta = 0.0f;
@@ -334,7 +334,7 @@ static void pcnn_bn_normalize_bp(struct layer_t *layer, struct model_t *model, s
     a = mean;
     b = param->multiplier;
     c = param->sums;
-    m = layer->output_depth;
+    m = layer->output_channels;
     n = feeder->local_batch_size;
     k = 1;
     alpha = 1.0f;
@@ -347,7 +347,7 @@ static void pcnn_bn_normalize_bp(struct layer_t *layer, struct model_t *model, s
     a = param->sums;
     b = param->multiplier;
     c = layer->e;
-    m = layer->output_depth * feeder->local_batch_size;
+    m = layer->output_channels * feeder->local_batch_size;
     n = layer->output_rows * layer->output_cols;
     k = 1;
     alpha = 1.0f;
@@ -387,7 +387,7 @@ static void pcnn_bn_scale_shift_bp(struct layer_t *layer, struct model_t *model,
     a = layer->e;
     x = param->multiplier;
     y = layer->local_dbeta;
-    m = layer->output_depth;
+    m = layer->output_channels;
     n = area;
     alpha = 1.0f;
     beta = 0.0f;
@@ -398,14 +398,14 @@ static void pcnn_bn_scale_shift_bp(struct layer_t *layer, struct model_t *model,
 
     /* 2. compute gamma gradients */
 #pragma omp parallel for
-    for (i = 0; i < layer->output_depth * area; i++) {
+    for (i = 0; i < layer->output_channels * area; i++) {
         param->col[i] = layer->e[i] * layer->a_norm[i];
     }
 
     a = param->col;
     x = param->multiplier;
     y = layer->local_dgamma;
-    m = layer->output_depth;
+    m = layer->output_channels;
     n = area;
     alpha = 1.0f;
     beta = 0.0f;
@@ -415,7 +415,7 @@ static void pcnn_bn_scale_shift_bp(struct layer_t *layer, struct model_t *model,
     cblas_sgemv(CblasRowMajor, CblasNoTrans, m, n, alpha, a, lda, x, incx, beta, y, incy);
 
     /* 3. error backward propagation */
-    for (i = 0; i < layer->output_depth; i++)
+    for (i = 0; i < layer->output_channels; i++)
         cblas_sscal(area, layer->gamma[i], &layer->e[i * area], 1);
 }
 
@@ -433,7 +433,7 @@ void pcnn_bn_update(struct layer_t *layer, struct model_t *model, struct param_t
         return;
 
     if(queue->nproc > 1){
-        length = layer->output_depth;
+        length = layer->output_channels;
         /* Curretly, our distributed batch normalization is not synchronous.
          * Assuming the local batch size and number of neurons at each layer are 
          * large enough, each process normalizes the activations locally.
@@ -443,7 +443,7 @@ void pcnn_bn_update(struct layer_t *layer, struct model_t *model, struct param_t
         bias_gradient_sums = layer->local_dbeta;
     }
     else{
-        length = layer->output_depth;
+        length = layer->output_channels;
         weight_gradient_sums = layer->local_dgamma;
         bias_gradient_sums = layer->local_dbeta;
     }

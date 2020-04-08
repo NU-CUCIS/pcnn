@@ -17,76 +17,89 @@ void pcnn_arch_config_lenet(struct model_t *model, struct feeder_t *feeder)
 
     pcnn_model_get_default_features(&features);
     features.num_channels = 1;
-    features.num_image_rows = 28;
-    features.num_image_cols = 28;
+    features.image_depth = 1;
+    features.image_rows = 28;
+    features.image_cols = 28;
     features.type = LAYER_TYPE_CONV;
     features.std = 0.0001;
     features.mean = 0;
-    features.pad = 0;
-    features.stride = 1;
+    features.pad_rows = 0;
+    features.pad_cols = 0;
+    features.stride_rows = 1;
+    features.stride_cols = 1;
     features.ReLU = 1;
     features.filter_rows = 5;
     features.filter_cols = 5;
-    features.output_depth = 20;
+    features.output_channels = 20;
     features.bottom_layer = -1;
     pcnn_model_init_layer(model, feeder, &features);
 
     pcnn_model_get_default_features(&features);
     features.type = LAYER_TYPE_POOL;
     features.sub_type = 0; /* max-pooling */
-    features.pad = 0;
-    features.stride = 2;
+    features.pad_rows = 0;
+    features.pad_cols = 0;
+    features.stride_rows = 2;
+    features.stride_cols = 2;
     features.filter_rows = 2;
     features.filter_cols = 2;
-    features.output_depth = 20;
+    features.output_channels = 20;
     features.bottom_layer = 0;
     pcnn_model_init_layer(model, feeder, &features);
 
     pcnn_model_get_default_features(&features);
     features.type = LAYER_TYPE_CONV;
     features.std = 0.01;
-    features.pad = 2;
-    features.stride = 1;
+    features.pad_rows = 2;
+    features.pad_cols = 2;
+    features.stride_rows = 1;
+    features.stride_cols = 1;
     features.ReLU = 1;
     features.batch_norm = 0;
     features.filter_rows = 5;
     features.filter_cols = 5;
-    features.output_depth = 50;
+    features.output_channels = 50;
     features.bottom_layer = 1;
     pcnn_model_init_layer(model, feeder, &features);
 
     pcnn_model_get_default_features(&features);
     features.type = LAYER_TYPE_POOL;
     features.sub_type = 0; /* max-pooling */
-    features.pad = 0;
-    features.stride = 2;
+    features.pad_rows = 0;
+    features.pad_cols = 0;
+    features.stride_rows = 2;
+    features.stride_cols = 2;
     features.filter_rows = 2;
     features.filter_cols = 2;
-    features.output_depth = 50;
+    features.output_channels = 50;
     features.bottom_layer = 2;
     pcnn_model_init_layer(model, feeder, &features);
 
     pcnn_model_get_default_features(&features);
     features.type = LAYER_TYPE_FULL;
     features.std = 0.1;
-    features.pad = 0;
-    features.stride = 1;
+    features.pad_rows = 0;
+    features.pad_cols = 0;
+    features.stride_rows = 1;
+    features.stride_cols = 1;
     features.ReLU = 1;
     features.filter_cols = 1;
     features.filter_rows = 64;
-    features.output_depth = 1;
+    features.output_channels = 1;
     features.bottom_layer = 3;
     pcnn_model_init_layer(model, feeder, &features);
 
     pcnn_model_get_default_features(&features);
     features.type = LAYER_TYPE_FULL;
     features.std = 0.1;
-    features.pad = 0;
-    features.stride = 1;
+    features.pad_rows = 0;
+    features.pad_cols = 0;
+    features.stride_rows = 1;
+    features.stride_cols = 1;
     features.loss_type = LOSS_TYPE_SOFTMAX;
     features.filter_cols = 1;
     features.filter_rows = 10;
-    features.output_depth = 1;
+    features.output_channels = 1;
     features.bottom_layer = 4;
     pcnn_model_init_layer(model, feeder, &features);
 }
@@ -97,97 +110,114 @@ void pcnn_arch_config_cifar10(struct model_t *model, struct feeder_t *feeder)
 
     pcnn_model_get_default_features(&features);
     features.num_channels = 3;
-    features.num_image_rows = 32;
-    features.num_image_cols = 32;
+    features.image_depth = 1;
+    features.image_rows = 32;
+    features.image_cols = 32;
     features.type = LAYER_TYPE_CONV;
     features.std = 0.001;
     features.mean = 0;
-    features.pad = 2;
-    features.stride = 1;
+    features.pad_rows = 2;
+    features.pad_cols = 2;
+    features.stride_rows = 1;
+    features.stride_cols = 1;
     features.ReLU = 1;
     features.filter_rows = 5;
     features.filter_cols = 5;
-    features.output_depth = 32;
+    features.output_channels = 32;
     features.bottom_layer = -1;
     pcnn_model_init_layer(model, feeder, &features);
 
     pcnn_model_get_default_features(&features);
     features.type = LAYER_TYPE_POOL;
     features.sub_type = 0; /* max-pooling */
-    features.pad = 0;
-    features.stride = 2;
+    features.pad_rows = 0;
+    features.pad_cols = 0;
+    features.stride_rows = 2;
+    features.stride_cols = 2;
     features.filter_rows = 2;
     features.filter_cols = 2;
-    features.output_depth = 32;
+    features.output_channels = 32;
     features.bottom_layer = 0;
     pcnn_model_init_layer(model, feeder, &features);
 
     pcnn_model_get_default_features(&features);
     features.type = LAYER_TYPE_CONV;
     features.std = 0.01;
-    features.pad = 2;
-    features.stride = 1;
+    features.pad_rows = 2;
+    features.pad_cols = 2;
+    features.stride_rows = 1;
+    features.stride_cols = 1;
     features.ReLU = 1;
     features.filter_rows = 5;
     features.filter_cols = 5;
-    features.output_depth = 32;
+    features.output_channels = 32;
     features.bottom_layer = 1;
     pcnn_model_init_layer(model, feeder, &features);
 
     pcnn_model_get_default_features(&features);
     features.type = LAYER_TYPE_POOL;
     features.sub_type = 0; /* max-pooling */
-    features.pad = 0;
-    features.stride = 2;
+    features.pad_rows = 0;
+    features.pad_cols = 0;
+    features.stride_rows = 2;
+    features.stride_cols = 2;
     features.filter_rows = 2;
     features.filter_cols = 2;
-    features.output_depth = 32;
+    features.output_channels = 32;
     features.bottom_layer = 2;
     pcnn_model_init_layer(model, feeder, &features);
 
     pcnn_model_get_default_features(&features);
     features.type = LAYER_TYPE_CONV;
     features.std = 0.01;
-    features.pad = 2;
-    features.stride = 1;
+    features.pad_rows = 2;
+    features.pad_cols = 2;
+    features.stride_rows = 1;
+    features.stride_cols = 1;
     features.ReLU = 1;
     features.filter_rows = 5;
     features.filter_cols = 5;
-    features.output_depth = 64;
+    features.output_channels = 64;
     features.bottom_layer = 3;
     pcnn_model_init_layer(model, feeder, &features);
 
     pcnn_model_get_default_features(&features);
     features.type = LAYER_TYPE_POOL;
     features.sub_type = 0; /* max-pooling */
-    features.pad = 0;
-    features.stride = 2;
+    features.pad_rows = 0;
+    features.pad_cols = 0;
+    features.stride_rows = 2;
+    features.stride_cols = 2;
     features.filter_rows = 2;
     features.filter_cols = 2;
-    features.output_depth = 64;
+    features.output_channels = 64;
     features.bottom_layer = 4;
     pcnn_model_init_layer(model, feeder, &features);
 
     pcnn_model_get_default_features(&features);
     features.type = LAYER_TYPE_FULL;
     features.std = 0.1;
-    features.pad = 0;
-    features.stride = 1;
+    features.pad_rows = 0;
+    features.pad_cols = 0;
+    features.stride_rows = 1;
+    features.stride_cols = 1;
     features.filter_cols = 1;
     features.filter_rows = 64;
-    features.output_depth = 1;
+    features.output_channels = 1;
     features.bottom_layer = 5;
     pcnn_model_init_layer(model, feeder, &features);
 
     pcnn_model_get_default_features(&features);
     features.type = LAYER_TYPE_FULL;
     features.std = 0.1;
-    features.pad = 0;
-    features.stride = 1;
+    features.pad_rows = 0;
+    features.pad_cols = 0;
+    features.stride_rows = 1;
+    features.stride_cols = 1;
     features.loss_type = LOSS_TYPE_SOFTMAX;
     features.filter_cols = 1;
     features.filter_rows = 10;
-    features.output_depth = 1;
+    features.output_channels = 1;
     features.bottom_layer = 6;
     pcnn_model_init_layer(model, feeder, &features);
 }
@@ -199,17 +229,20 @@ void pcnn_arch_config_vgga(struct model_t *model, struct feeder_t *feeder)
     /* 0 conv */
     pcnn_model_get_default_features(&features);
     features.num_channels = 3;
-    features.num_image_rows = 224;
-    features.num_image_cols = 224;
+    features.image_depth = 1;
+    features.image_rows = 224;
+    features.image_cols = 224;
     features.type = LAYER_TYPE_CONV;
     features.std = 0.01;
     features.mean = 0;
-    features.pad = 1;
-    features.stride = 1;
+    features.pad_rows = 1;
+    features.pad_cols = 1;
+    features.stride_rows = 1;
+    features.stride_cols = 1;
     features.ReLU = 1;
     features.filter_rows = 3;
     features.filter_cols = 3;
-    features.output_depth = 64;
+    features.output_channels = 64;
     features.bottom_layer = -1;
     pcnn_model_init_layer(model, feeder, &features);
 
@@ -217,11 +250,13 @@ void pcnn_arch_config_vgga(struct model_t *model, struct feeder_t *feeder)
     pcnn_model_get_default_features(&features);
     features.type = LAYER_TYPE_POOL;
     features.sub_type = 0; /* max-pooling */
-    features.pad = 0;
-    features.stride = 2;
+    features.pad_rows = 0;
+    features.pad_cols = 0;
+    features.stride_rows = 2;
+    features.stride_cols = 2;
     features.filter_rows = 2;
     features.filter_cols = 2;
-    features.output_depth = 64;
+    features.output_channels = 64;
     features.bottom_layer = 0;
     pcnn_model_init_layer(model, feeder, &features);
 
@@ -230,12 +265,14 @@ void pcnn_arch_config_vgga(struct model_t *model, struct feeder_t *feeder)
     features.type = LAYER_TYPE_CONV;
     features.std = 0.01;
     features.mean = 0;
-    features.pad = 1;
-    features.stride = 1;
+    features.pad_rows = 1;
+    features.pad_cols = 1;
+    features.stride_rows = 1;
+    features.stride_cols = 1;
     features.ReLU = 1;
     features.filter_rows = 3;
     features.filter_cols = 3;
-    features.output_depth = 128;
+    features.output_channels = 128;
     features.bottom_layer = 1;
     pcnn_model_init_layer(model, feeder, &features);
 
@@ -243,11 +280,13 @@ void pcnn_arch_config_vgga(struct model_t *model, struct feeder_t *feeder)
     pcnn_model_get_default_features(&features);
     features.type = LAYER_TYPE_POOL;
     features.sub_type = 0; /* max-pooling */
-    features.pad = 0;
-    features.stride = 2;
+    features.pad_rows = 0;
+    features.pad_cols = 0;
+    features.stride_rows = 2;
+    features.stride_cols = 2;
     features.filter_rows = 2;
     features.filter_cols = 2;
-    features.output_depth = 128;
+    features.output_channels = 128;
     features.bottom_layer = 2;
     pcnn_model_init_layer(model, feeder, &features);
 
@@ -256,12 +295,14 @@ void pcnn_arch_config_vgga(struct model_t *model, struct feeder_t *feeder)
     features.type = LAYER_TYPE_CONV;
     features.std = 0.01;
     features.mean = 0;
-    features.pad = 1;
-    features.stride = 1;
+    features.pad_rows = 1;
+    features.pad_cols = 1;
+    features.stride_rows = 1;
+    features.stride_cols = 1;
     features.ReLU = 1;
     features.filter_rows = 3;
     features.filter_cols = 3;
-    features.output_depth = 256;
+    features.output_channels = 256;
     features.bottom_layer = 3;
     pcnn_model_init_layer(model, feeder, &features);
 
@@ -270,12 +311,14 @@ void pcnn_arch_config_vgga(struct model_t *model, struct feeder_t *feeder)
     features.type = LAYER_TYPE_CONV;
     features.std = 0.01;
     features.mean = 0;
-    features.pad = 1;
-    features.stride = 1;
+    features.pad_rows = 1;
+    features.pad_cols = 1;
+    features.stride_rows = 1;
+    features.stride_cols = 1;
     features.ReLU = 1;
     features.filter_rows = 3;
     features.filter_cols = 3;
-    features.output_depth = 256;
+    features.output_channels = 256;
     features.bottom_layer = 4;
     pcnn_model_init_layer(model, feeder, &features);
 
@@ -283,12 +326,14 @@ void pcnn_arch_config_vgga(struct model_t *model, struct feeder_t *feeder)
     pcnn_model_get_default_features(&features);
     features.type = LAYER_TYPE_POOL;
     features.sub_type = 0; /* max-pooling */
-    features.pad = 0;
-    features.stride = 2;
+    features.pad_rows = 0;
+    features.pad_cols = 0;
+    features.stride_rows = 2;
+    features.stride_cols = 2;
     features.ReLU = 0;
     features.filter_rows = 2;
     features.filter_cols = 2;
-    features.output_depth = 256;
+    features.output_channels = 256;
     features.bottom_layer = 5;
     pcnn_model_init_layer(model, feeder, &features);
 
@@ -297,12 +342,14 @@ void pcnn_arch_config_vgga(struct model_t *model, struct feeder_t *feeder)
     features.type = LAYER_TYPE_CONV;
     features.std = 0.01;
     features.mean = 0;
-    features.pad = 1;
-    features.stride = 1;
+    features.pad_rows = 1;
+    features.pad_cols = 1;
+    features.stride_rows = 1;
+    features.stride_cols = 1;
     features.ReLU = 1;
     features.filter_rows = 3;
     features.filter_cols = 3;
-    features.output_depth = 512;
+    features.output_channels = 512;
     features.bottom_layer = 6;
     pcnn_model_init_layer(model, feeder, &features);
 
@@ -311,12 +358,14 @@ void pcnn_arch_config_vgga(struct model_t *model, struct feeder_t *feeder)
     features.type = LAYER_TYPE_CONV;
     features.std = 0.01;
     features.mean = 0;
-    features.pad = 1;
-    features.stride = 1;
+    features.pad_rows = 1;
+    features.pad_cols = 1;
+    features.stride_rows = 1;
+    features.stride_cols = 1;
     features.ReLU = 1;
     features.filter_rows = 3;
     features.filter_cols = 3;
-    features.output_depth = 512;
+    features.output_channels = 512;
     features.bottom_layer = 7;
     pcnn_model_init_layer(model, feeder, &features);
 
@@ -324,11 +373,13 @@ void pcnn_arch_config_vgga(struct model_t *model, struct feeder_t *feeder)
     pcnn_model_get_default_features(&features);
     features.type = LAYER_TYPE_POOL;
     features.sub_type = 0; /* max-pooling */
-    features.pad = 0;
-    features.stride = 2;
+    features.pad_rows = 0;
+    features.pad_cols = 0;
+    features.stride_rows = 2;
+    features.stride_cols = 2;
     features.filter_rows = 2;
     features.filter_cols = 2;
-    features.output_depth = 512;
+    features.output_channels = 512;
     features.bottom_layer = 8;
     pcnn_model_init_layer(model, feeder, &features);
 
@@ -337,12 +388,14 @@ void pcnn_arch_config_vgga(struct model_t *model, struct feeder_t *feeder)
     features.type = LAYER_TYPE_CONV;
     features.std = 0.01;
     features.mean = 0;
-    features.pad = 1;
-    features.stride = 1;
+    features.pad_rows = 1;
+    features.pad_cols = 1;
+    features.stride_rows = 1;
+    features.stride_cols = 1;
     features.ReLU = 1;
     features.filter_rows = 3;
     features.filter_cols = 3;
-    features.output_depth = 512;
+    features.output_channels = 512;
     features.bottom_layer = 9;
     pcnn_model_init_layer(model, feeder, &features);
 
@@ -351,12 +404,14 @@ void pcnn_arch_config_vgga(struct model_t *model, struct feeder_t *feeder)
     features.type = LAYER_TYPE_CONV;
     features.std = 0.01;
     features.mean = 0;
-    features.pad = 1;
-    features.stride = 1;
+    features.pad_rows = 1;
+    features.pad_cols = 1;
+    features.stride_rows = 1;
+    features.stride_cols = 1;
     features.ReLU = 1;
     features.filter_rows = 3;
     features.filter_cols = 3;
-    features.output_depth = 512;
+    features.output_channels = 512;
     features.bottom_layer = 10;
     pcnn_model_init_layer(model, feeder, &features);
 
@@ -364,11 +419,13 @@ void pcnn_arch_config_vgga(struct model_t *model, struct feeder_t *feeder)
     pcnn_model_get_default_features(&features);
     features.type = LAYER_TYPE_POOL;
     features.sub_type = 0; /* max-pooling */
-    features.pad = 0;
-    features.stride = 2;
+    features.pad_rows = 0;
+    features.pad_cols = 0;
+    features.stride_rows = 2;
+    features.stride_cols = 2;
     features.filter_rows = 2;
     features.filter_cols = 2;
-    features.output_depth = 512;
+    features.output_channels = 512;
     features.bottom_layer = 11;
     pcnn_model_init_layer(model, feeder, &features);
 
@@ -376,12 +433,14 @@ void pcnn_arch_config_vgga(struct model_t *model, struct feeder_t *feeder)
     pcnn_model_get_default_features(&features);
     features.type = LAYER_TYPE_FULL;
     features.std = 0.01;
-    features.pad = 0;
-    features.stride = 1;
+    features.pad_rows = 0;
+    features.pad_cols = 0;
+    features.stride_rows = 1;
+    features.stride_cols = 1;
     features.ReLU = 1;
     features.filter_cols = 1;
     features.filter_rows = 4096;
-    features.output_depth = 1;
+    features.output_channels = 1;
     features.bottom_layer = 12;
     pcnn_model_init_layer(model, feeder, &features);
 
@@ -389,12 +448,14 @@ void pcnn_arch_config_vgga(struct model_t *model, struct feeder_t *feeder)
     pcnn_model_get_default_features(&features);
     features.type = LAYER_TYPE_FULL;
     features.std = 0.01;
-    features.pad = 0;
-    features.stride = 1;
+    features.pad_rows = 0;
+    features.pad_cols = 0;
+    features.stride_rows = 1;
+    features.stride_cols = 1;
     features.ReLU = 1;
     features.filter_cols = 1;
     features.filter_rows = 4096;
-    features.output_depth = 1;
+    features.output_channels = 1;
     features.bottom_layer = 13;
     pcnn_model_init_layer(model, feeder, &features);
 
@@ -402,17 +463,19 @@ void pcnn_arch_config_vgga(struct model_t *model, struct feeder_t *feeder)
     pcnn_model_get_default_features(&features);
     features.type = LAYER_TYPE_FULL;
     features.std = 0.01;
-    features.pad = 0;
-    features.stride = 1;
+    features.pad_rows = 0;
+    features.pad_cols = 0;
+    features.stride_rows = 1;
+    features.stride_cols = 1;
     features.loss_type = LOSS_TYPE_SOFTMAX;
     features.filter_cols = 1;
     features.filter_rows = 1000;
-    features.output_depth = 1;
+    features.output_channels = 1;
     features.bottom_layer = 14;
     pcnn_model_init_layer(model, feeder, &features);
 }
 
-static void pcnn_arch_resblock_large(struct model_t *model, struct feeder_t *feeder, int depth0, int depth1, int depth2, int bottom_layer, int stride)
+static void pcnn_arch_resblock_large(struct model_t *model, struct feeder_t *feeder, int depth0, int depth1, int depth2, int bottom_layer, int stride_rows, int stride_cols)
 {
     int skip_from;
     struct layer_t *bottom;
@@ -421,17 +484,19 @@ static void pcnn_arch_resblock_large(struct model_t *model, struct feeder_t *fee
     bottom = model->layers[bottom_layer];
 
     /* 1 conv (left branch) */
-    if(bottom->output_depth != depth2){
+    if(bottom->output_channels != depth2){
         pcnn_model_get_default_features(&features);
         features.type = LAYER_TYPE_CONV;
         features.std = 0.01;
         features.mean = 0;
-        features.pad = 0;
-        features.stride = stride;
+        features.pad_rows = 0;
+        features.pad_cols = 0;
+        features.stride_rows = stride_rows;
+        features.stride_cols = stride_cols;
         features.batch_norm = 1;
         features.filter_rows = 1;
         features.filter_cols = 1;
-        features.output_depth = depth2;
+        features.output_channels = depth2;
         features.bottom_layer = bottom->id;
         pcnn_model_init_layer(model, feeder, &features);
         skip_from = model->layers[model->num_layers-1]->id;
@@ -445,13 +510,15 @@ static void pcnn_arch_resblock_large(struct model_t *model, struct feeder_t *fee
     features.type = LAYER_TYPE_CONV;
     features.std = 0.01;
     features.mean = 0;
-    features.pad = 0;
-    features.stride = stride;
+    features.pad_rows = 0;
+    features.pad_cols = 0;
+    features.stride_rows = stride_rows;
+    features.stride_cols = stride_cols;
     features.ReLU = 1;
     features.batch_norm = 1;
     features.filter_rows = 1;
     features.filter_cols = 1;
-    features.output_depth = depth0;
+    features.output_channels = depth0;
     features.bottom_layer = bottom->id;
     pcnn_model_init_layer(model, feeder, &features);
 
@@ -460,13 +527,15 @@ static void pcnn_arch_resblock_large(struct model_t *model, struct feeder_t *fee
     features.type = LAYER_TYPE_CONV;
     features.std = 0.01;
     features.mean = 0;
-    features.pad = 1;
-    features.stride = 1;
+    features.pad_rows = 1;
+    features.pad_cols = 1;
+    features.stride_rows = 1;
+    features.stride_cols = 1;
     features.ReLU = 1;
     features.batch_norm = 1;
     features.filter_rows = 3;
     features.filter_cols = 3;
-    features.output_depth = depth1;
+    features.output_channels = depth1;
     features.bottom_layer = model->layers[model->num_layers-1]->id;
     pcnn_model_init_layer(model, feeder, &features);
 
@@ -475,19 +544,21 @@ static void pcnn_arch_resblock_large(struct model_t *model, struct feeder_t *fee
     features.type = LAYER_TYPE_CONV;
     features.std = 0.01;
     features.mean = 0;
-    features.pad = 0;
-    features.stride = 1;
+    features.pad_rows = 0;
+    features.pad_cols = 0;
+    features.stride_rows = 1;
+    features.stride_cols = 1;
     features.ReLU = 1;
     features.batch_norm = 1;
     features.filter_rows = 1;
     features.filter_cols = 1;
-    features.output_depth = depth2;
+    features.output_channels = depth2;
     features.bottom_layer = model->layers[model->num_layers-1]->id;
     features.skip_from = skip_from;
     pcnn_model_init_layer(model, feeder, &features);
 }
 
-static void pcnn_arch_resblock_small(struct model_t *model, struct feeder_t *feeder, int depth0, int depth1, int bottom_layer, int stride)
+static void pcnn_arch_resblock_small(struct model_t *model, struct feeder_t *feeder, int depth0, int depth1, int bottom_layer, int stride_rows, int stride_cols)
 {
     int skip_from;
     struct layer_t *bottom;
@@ -496,17 +567,19 @@ static void pcnn_arch_resblock_small(struct model_t *model, struct feeder_t *fee
     bottom = model->layers[bottom_layer];
 
     /* 1 conv (left branch) */
-    if(bottom->output_depth != depth1){
+    if(bottom->output_channels != depth1){
         pcnn_model_get_default_features(&features);
         features.type = LAYER_TYPE_CONV;
         features.std = 0.01;
         features.mean = 0;
-        features.pad = 0;
-        features.stride = stride;
+        features.pad_rows = 0;
+        features.pad_cols = 0;
+        features.stride_rows = stride_rows;
+        features.stride_cols = stride_cols;
         features.batch_norm = 1;
         features.filter_rows = 1;
         features.filter_cols = 1;
-        features.output_depth = depth1;
+        features.output_channels = depth1;
         features.bottom_layer = bottom->id;
         pcnn_model_init_layer(model, feeder, &features);
         skip_from = model->layers[model->num_layers-1]->id;
@@ -520,13 +593,15 @@ static void pcnn_arch_resblock_small(struct model_t *model, struct feeder_t *fee
     features.type = LAYER_TYPE_CONV;
     features.std = 0.01;
     features.mean = 0;
-    features.pad = 1;
-    features.stride = stride;
+    features.pad_rows = 1;
+    features.pad_cols = 1;
+    features.stride_rows = stride_rows;
+    features.stride_cols = stride_cols;
     features.ReLU = 1;
     features.batch_norm = 1;
     features.filter_rows = 3;
     features.filter_cols = 3;
-    features.output_depth = depth0;
+    features.output_channels = depth0;
     features.bottom_layer = bottom->id;
     pcnn_model_init_layer(model, feeder, &features);
 
@@ -535,13 +610,15 @@ static void pcnn_arch_resblock_small(struct model_t *model, struct feeder_t *fee
     features.type = LAYER_TYPE_CONV;
     features.std = 0.01;
     features.mean = 0;
-    features.pad = 1;
-    features.stride = 1;
+    features.pad_rows = 1;
+    features.pad_cols = 1;
+    features.stride_rows = 1;
+    features.stride_cols = 1;
     features.ReLU = 1;
     features.batch_norm = 1;
     features.filter_rows = 3;
     features.filter_cols = 3;
-    features.output_depth = depth1;
+    features.output_channels = depth1;
     features.bottom_layer = model->layers[model->num_layers-1]->id;
     features.skip_from = skip_from;
     pcnn_model_init_layer(model, feeder, &features);
@@ -549,47 +626,53 @@ static void pcnn_arch_resblock_small(struct model_t *model, struct feeder_t *fee
 
 void pcnn_arch_config_resnet20(struct model_t *model, struct feeder_t *feeder)
 {
+    int k = 1;
     struct feature_t features;
 
     /* 0 conv */
     pcnn_model_get_default_features(&features);
     features.num_channels = 3;
-    features.num_image_rows = 32;
-    features.num_image_cols = 32;
+    features.image_depth = 1;
+    features.image_rows = 32;
+    features.image_cols = 32;
     features.type = LAYER_TYPE_CONV;
     features.std = 0.01;
     features.mean = 0;
-    features.pad = 1;
-    features.stride = 1;
+    features.pad_rows = 1;
+    features.pad_cols = 1;
+    features.stride_rows = 1;
+    features.stride_cols = 1;
     features.filter_rows = 3;
     features.filter_cols = 3;
     features.ReLU = 1;
     features.batch_norm = 1;
-    features.output_depth = 16;
+    features.output_channels = 16 * k;
     features.bottom_layer = -1;
     pcnn_model_init_layer(model, feeder, &features);
 
-    pcnn_arch_resblock_small(model, feeder, 16, 16, model->layers[model->num_layers-1]->id, 1);
-    pcnn_arch_resblock_small(model, feeder, 16, 16, model->layers[model->num_layers-1]->id, 1);
-    pcnn_arch_resblock_small(model, feeder, 16, 16, model->layers[model->num_layers-1]->id, 1);
+    pcnn_arch_resblock_small(model, feeder, 16 * k, 16 * k, model->layers[model->num_layers-1]->id, 1, 1);
+    pcnn_arch_resblock_small(model, feeder, 16 * k, 16 * k, model->layers[model->num_layers-1]->id, 1, 1);
+    pcnn_arch_resblock_small(model, feeder, 16 * k, 16 * k, model->layers[model->num_layers-1]->id, 1, 1);
 
-    pcnn_arch_resblock_small(model, feeder, 32, 32, model->layers[model->num_layers-1]->id, 2);
-    pcnn_arch_resblock_small(model, feeder, 32, 32, model->layers[model->num_layers-1]->id, 1);
-    pcnn_arch_resblock_small(model, feeder, 32, 32, model->layers[model->num_layers-1]->id, 1);
+    pcnn_arch_resblock_small(model, feeder, 32 * k, 32 * k, model->layers[model->num_layers-1]->id, 2, 2);
+    pcnn_arch_resblock_small(model, feeder, 32 * k, 32 * k, model->layers[model->num_layers-1]->id, 1, 1);
+    pcnn_arch_resblock_small(model, feeder, 32 * k, 32 * k, model->layers[model->num_layers-1]->id, 1, 1);
 
-    pcnn_arch_resblock_small(model, feeder, 64, 64, model->layers[model->num_layers-1]->id, 2);
-    pcnn_arch_resblock_small(model, feeder, 64, 64, model->layers[model->num_layers-1]->id, 1);
-    pcnn_arch_resblock_small(model, feeder, 64, 64, model->layers[model->num_layers-1]->id, 1);
+    pcnn_arch_resblock_small(model, feeder, 64 * k, 64 * k, model->layers[model->num_layers-1]->id, 2, 2);
+    pcnn_arch_resblock_small(model, feeder, 64 * k, 64 * k, model->layers[model->num_layers-1]->id, 1, 1);
+    pcnn_arch_resblock_small(model, feeder, 64 * k, 64 * k, model->layers[model->num_layers-1]->id, 1, 1);
 
     /* final pool */
     pcnn_model_get_default_features(&features);
     features.type = LAYER_TYPE_POOL;
     features.sub_type = 1; /* global average pooling */
-    features.pad = 0;
-    features.stride = 1;
+    features.pad_rows = 0;
+    features.pad_cols = 0;
+    features.stride_rows = 1;
+    features.stride_cols = 1;
     features.filter_rows = model->layers[model->num_layers-1]->output_rows;
     features.filter_cols = model->layers[model->num_layers-1]->output_cols;
-    features.output_depth = model->layers[model->num_layers-1]->output_depth;
+    features.output_channels = model->layers[model->num_layers-1]->output_channels;
     features.bottom_layer = model->layers[model->num_layers-1]->id;
     pcnn_model_init_layer(model, feeder, &features);
 
@@ -597,11 +680,13 @@ void pcnn_arch_config_resnet20(struct model_t *model, struct feeder_t *feeder)
     pcnn_model_get_default_features(&features);
     features.type = LAYER_TYPE_FULL;
     features.std = 0.01;
-    features.pad = 0;
-    features.stride = 1;
+    features.pad_rows = 0;
+    features.pad_cols = 0;
+    features.stride_rows = 1;
+    features.stride_cols = 1;
     features.filter_cols = 1;
     features.filter_rows = 10;
-    features.output_depth = 1;
+    features.output_channels = 1;
     features.loss_type = LOSS_TYPE_SOFTMAX;
     features.bottom_layer = model->layers[model->num_layers-1]->id;
     pcnn_model_init_layer(model, feeder, &features);
@@ -614,18 +699,21 @@ void pcnn_arch_config_resnet50(struct model_t *model, struct feeder_t *feeder)
     /* 0 conv */
     pcnn_model_get_default_features(&features);
     features.num_channels = 3;
-    features.num_image_rows = 224;
-    features.num_image_cols = 224;
+    features.image_depth = 1;
+    features.image_rows = 224;
+    features.image_cols = 224;
     features.type = LAYER_TYPE_CONV;
     features.std = 0.01;
     features.mean = 0;
-    features.pad = 3;
-    features.stride = 2;
+    features.pad_rows = 3;
+    features.pad_cols = 3;
+    features.stride_rows = 2;
+    features.stride_cols = 2;
     features.filter_rows = 7;
     features.filter_cols = 7;
     features.ReLU = 1;
     features.batch_norm = 1;
-    features.output_depth = 64;
+    features.output_channels = 64;
     features.bottom_layer = -1;
     pcnn_model_init_layer(model, feeder, &features);
 
@@ -633,43 +721,47 @@ void pcnn_arch_config_resnet50(struct model_t *model, struct feeder_t *feeder)
     pcnn_model_get_default_features(&features);
     features.type = LAYER_TYPE_POOL;
     features.sub_type = 0; /* max-pooling */
-    features.pad = 0;
-    features.stride = 2;
+    features.pad_rows = 0;
+    features.pad_cols = 0;
+    features.stride_rows = 2;
+    features.stride_cols = 2;
     features.filter_rows = 3;
     features.filter_cols = 3;
-    features.output_depth = 64;
+    features.output_channels = 64;
     features.bottom_layer = model->layers[model->num_layers-1]->id;
     pcnn_model_init_layer(model, feeder, &features);
 
-    pcnn_arch_resblock_large(model, feeder, 64, 64, 256, model->layers[model->num_layers-1]->id, 1);
-    pcnn_arch_resblock_large(model, feeder, 64, 64, 256, model->layers[model->num_layers-1]->id, 1);
-    pcnn_arch_resblock_large(model, feeder, 64, 64, 256, model->layers[model->num_layers-1]->id, 1);
+    pcnn_arch_resblock_large(model, feeder, 64, 64, 256, model->layers[model->num_layers-1]->id, 1, 1);
+    pcnn_arch_resblock_large(model, feeder, 64, 64, 256, model->layers[model->num_layers-1]->id, 1, 1);
+    pcnn_arch_resblock_large(model, feeder, 64, 64, 256, model->layers[model->num_layers-1]->id, 1, 1);
 
-    pcnn_arch_resblock_large(model, feeder, 128, 128, 512, model->layers[model->num_layers-1]->id, 2);
-    pcnn_arch_resblock_large(model, feeder, 128, 128, 512, model->layers[model->num_layers-1]->id, 1);
-    pcnn_arch_resblock_large(model, feeder, 128, 128, 512, model->layers[model->num_layers-1]->id, 1);
-    pcnn_arch_resblock_large(model, feeder, 128, 128, 512, model->layers[model->num_layers-1]->id, 1);
+    pcnn_arch_resblock_large(model, feeder, 128, 128, 512, model->layers[model->num_layers-1]->id, 2, 2);
+    pcnn_arch_resblock_large(model, feeder, 128, 128, 512, model->layers[model->num_layers-1]->id, 1, 1);
+    pcnn_arch_resblock_large(model, feeder, 128, 128, 512, model->layers[model->num_layers-1]->id, 1, 1);
+    pcnn_arch_resblock_large(model, feeder, 128, 128, 512, model->layers[model->num_layers-1]->id, 1, 1);
 
-    pcnn_arch_resblock_large(model, feeder, 256, 256, 1024, model->layers[model->num_layers-1]->id, 2);
-    pcnn_arch_resblock_large(model, feeder, 256, 256, 1024, model->layers[model->num_layers-1]->id, 1);
-    pcnn_arch_resblock_large(model, feeder, 256, 256, 1024, model->layers[model->num_layers-1]->id, 1);
-    pcnn_arch_resblock_large(model, feeder, 256, 256, 1024, model->layers[model->num_layers-1]->id, 1);
-    pcnn_arch_resblock_large(model, feeder, 256, 256, 1024, model->layers[model->num_layers-1]->id, 1);
-    pcnn_arch_resblock_large(model, feeder, 256, 256, 1024, model->layers[model->num_layers-1]->id, 1);
+    pcnn_arch_resblock_large(model, feeder, 256, 256, 1024, model->layers[model->num_layers-1]->id, 2, 2);
+    pcnn_arch_resblock_large(model, feeder, 256, 256, 1024, model->layers[model->num_layers-1]->id, 1, 1);
+    pcnn_arch_resblock_large(model, feeder, 256, 256, 1024, model->layers[model->num_layers-1]->id, 1, 1);
+    pcnn_arch_resblock_large(model, feeder, 256, 256, 1024, model->layers[model->num_layers-1]->id, 1, 1);
+    pcnn_arch_resblock_large(model, feeder, 256, 256, 1024, model->layers[model->num_layers-1]->id, 1, 1);
+    pcnn_arch_resblock_large(model, feeder, 256, 256, 1024, model->layers[model->num_layers-1]->id, 1, 1);
 
-    pcnn_arch_resblock_large(model, feeder, 512, 512, 2048, model->layers[model->num_layers-1]->id, 2);
-    pcnn_arch_resblock_large(model, feeder, 512, 512, 2048, model->layers[model->num_layers-1]->id, 1);
-    pcnn_arch_resblock_large(model, feeder, 512, 512, 2048, model->layers[model->num_layers-1]->id, 1);
+    pcnn_arch_resblock_large(model, feeder, 512, 512, 2048, model->layers[model->num_layers-1]->id, 2, 2);
+    pcnn_arch_resblock_large(model, feeder, 512, 512, 2048, model->layers[model->num_layers-1]->id, 1, 1);
+    pcnn_arch_resblock_large(model, feeder, 512, 512, 2048, model->layers[model->num_layers-1]->id, 1, 1);
 
     /* final pool */
     pcnn_model_get_default_features(&features);
     features.type = LAYER_TYPE_POOL;
     features.sub_type = 1; /* global average pooling */
-    features.pad = 0;
-    features.stride = 1;
+    features.pad_rows = 0;
+    features.pad_cols = 0;
+    features.stride_rows = 1;
+    features.stride_cols = 1;
     features.filter_rows = model->layers[model->num_layers-1]->output_rows;
     features.filter_cols = model->layers[model->num_layers-1]->output_cols;
-    features.output_depth = model->layers[model->num_layers-1]->output_depth;
+    features.output_channels = model->layers[model->num_layers-1]->output_channels;
     features.bottom_layer = model->layers[model->num_layers-1]->id;
     pcnn_model_init_layer(model, feeder, &features);
 
@@ -677,11 +769,13 @@ void pcnn_arch_config_resnet50(struct model_t *model, struct feeder_t *feeder)
     pcnn_model_get_default_features(&features);
     features.type = LAYER_TYPE_FULL;
     features.std = 0.01;
-    features.pad = 0;
-    features.stride = 1;
+    features.pad_rows = 0;
+    features.pad_cols = 0;
+    features.stride_rows = 1;
+    features.stride_cols = 1;
     features.filter_cols = 1;
     features.filter_rows = 1000;
-    features.output_depth = 1;
+    features.output_channels = 1;
     features.loss_type = LOSS_TYPE_SOFTMAX;
     features.bottom_layer = model->layers[model->num_layers-1]->id;
     pcnn_model_init_layer(model, feeder, &features);
@@ -695,12 +789,14 @@ static void pcnn_arch_edsr_resblock(struct model_t *model, struct feeder_t *feed
     features.type = LAYER_TYPE_CONV;
     features.std = 0.01;
     features.mean = 0;
-    features.pad = 1;
-    features.stride = 1;
+    features.pad_rows = 1;
+    features.pad_cols = 1;
+    features.stride_rows = 1;
+    features.stride_cols = 1;
     features.ReLU = 1;
     features.filter_rows = 3;
     features.filter_cols = 3;
-    features.output_depth = num_kernels;
+    features.output_channels = num_kernels;
     features.bottom_layer = bottom;
     features.batch_norm = batch_norm;
     pcnn_model_init_layer(model, feeder, &features);
@@ -709,11 +805,13 @@ static void pcnn_arch_edsr_resblock(struct model_t *model, struct feeder_t *feed
     features.type = LAYER_TYPE_CONV;
     features.std = 0.01;
     features.mean = 0;
-    features.pad = 1;
-    features.stride = 1;
+    features.pad_rows = 1;
+    features.pad_cols = 1;
+    features.stride_rows = 1;
+    features.stride_cols = 1;
     features.filter_rows = 3;
     features.filter_cols = 3;
-    features.output_depth = num_kernels;
+    features.output_channels = num_kernels;
     features.bottom_layer = bottom+1;
     features.skip_from = bottom;
     features.res_scale = scale;
@@ -731,16 +829,19 @@ void pcnn_arch_config_edsr(struct model_t *model, struct feeder_t *feeder)
     /* HEAD */
     pcnn_model_get_default_features(&features);
     features.num_channels = 3;
-    features.num_image_rows = 48;
-    features.num_image_cols = 48;
+    features.image_depth = 1;
+    features.image_rows = 48;
+    features.image_cols = 48;
     features.type = LAYER_TYPE_CONV;
     features.std = 0.01;
     features.mean = 0;
-    features.pad = 1;
-    features.stride = 1;
+    features.pad_rows = 1;
+    features.pad_cols = 1;
+    features.stride_rows = 1;
+    features.stride_cols = 1;
     features.filter_rows = 3;
     features.filter_cols = 3;
-    features.output_depth = num_kernels;
+    features.output_channels = num_kernels;
     features.bottom_layer = -1;
     pcnn_model_init_layer(model, feeder, &features);
 
@@ -751,11 +852,13 @@ void pcnn_arch_config_edsr(struct model_t *model, struct feeder_t *feeder)
     pcnn_model_get_default_features(&features);
     features.type = LAYER_TYPE_CONV;
     features.std = 0.01;
-    features.pad = 1;
-    features.stride = 1;
+    features.pad_rows = 1;
+    features.pad_cols = 1;
+    features.stride_rows = 1;
+    features.stride_cols = 1;
     features.filter_cols = 3;
     features.filter_rows = 3;
-    features.output_depth = num_kernels;
+    features.output_channels = num_kernels;
     features.bottom_layer = model->num_layers-1;
     features.skip_from = 0;
     pcnn_model_init_layer(model, feeder, &features);
@@ -764,11 +867,13 @@ void pcnn_arch_config_edsr(struct model_t *model, struct feeder_t *feeder)
     pcnn_model_get_default_features(&features);
     features.type = LAYER_TYPE_CONV;
     features.std = 0.01;
-    features.pad = 1;
-    features.stride = 1;
+    features.pad_rows = 1;
+    features.pad_cols = 1;
+    features.stride_rows = 1;
+    features.stride_cols = 1;
     features.filter_cols = 3;
     features.filter_rows = 3;
-    features.output_depth = num_kernels;
+    features.output_channels = num_kernels;
     features.bottom_layer = model->num_layers-1;
     pcnn_model_init_layer(model, feeder, &features);
 
@@ -777,11 +882,13 @@ void pcnn_arch_config_edsr(struct model_t *model, struct feeder_t *feeder)
     pcnn_model_get_default_features(&features);
     features.type = LAYER_TYPE_CONV;
     features.std = 0.01;
-    features.pad = 1;
-    features.stride = 1;
+    features.pad_rows = 1;
+    features.pad_cols = 1;
+    features.stride_rows = 1;
+    features.stride_cols = 1;
     features.filter_cols = 3;
     features.filter_rows = 3;
-    features.output_depth = num_kernels;
+    features.output_channels = num_kernels;
     features.bottom_layer = model->num_layers-1;
     pcnn_model_init_layer(model, feeder, &features);
 
@@ -807,16 +914,19 @@ void pcnn_arch_config_drrn(struct model_t *model, struct feeder_t *feeder)
     /* HEAD */
     pcnn_model_get_default_features(&features);
     features.num_channels = 1;
-    features.num_image_rows = 32;
-    features.num_image_cols = 32;
+    features.image_depth = 1;
+    features.image_rows = 32;
+    features.image_cols = 32;
     features.type = LAYER_TYPE_CONV;
     features.std = 0.01;
     features.mean = 0;
-    features.pad = 1;
-    features.stride = 1;
+    features.pad_rows = 1;
+    features.pad_cols = 1;
+    features.stride_rows = 1;
+    features.stride_cols = 1;
     features.filter_rows = 3;
     features.filter_cols = 3;
-    features.output_depth = num_kernels;
+    features.output_channels = num_kernels;
     features.bottom_layer = -1;
     pcnn_model_init_layer(model, feeder, &features);
 
@@ -832,12 +942,14 @@ void pcnn_arch_config_drrn(struct model_t *model, struct feeder_t *feeder)
     pcnn_model_get_default_features(&features);
     features.type = LAYER_TYPE_CONV;
     features.std = 0.01;
-    features.pad = 1;
-    features.stride = 1;
+    features.pad_rows = 1;
+    features.pad_cols = 1;
+    features.stride_rows = 1;
+    features.stride_cols = 1;
     features.loss_type = LOSS_TYPE_MAE;
     features.filter_cols = 3;
     features.filter_rows = 3;
-    features.output_depth = 1;
+    features.output_channels = 1;
     features.skip_from = 0;
     features.bottom_layer = model->num_layers-1;
     pcnn_model_init_layer(model, feeder, &features);
@@ -853,17 +965,20 @@ void pcnn_arch_config_vdsr(struct model_t *model, struct feeder_t *feeder)
     /* HEAD */
     pcnn_model_get_default_features(&features);
     features.num_channels = 3;
-    features.num_image_rows = 32;
-    features.num_image_cols = 32;
+    features.image_depth = 1;
+    features.image_rows = 32;
+    features.image_cols = 32;
     features.type = LAYER_TYPE_CONV;
     features.std = 0.01;
     features.mean = 0;
-    features.pad = 1;
-    features.stride = 1;
+    features.pad_rows = 1;
+    features.pad_cols = 1;
+    features.stride_rows = 1;
+    features.stride_cols = 1;
     features.ReLU = 0;
     features.filter_rows = 3;
     features.filter_cols = 3;
-    features.output_depth = num_kernels;
+    features.output_channels = num_kernels;
     features.bottom_layer = -1;
     pcnn_model_init_layer(model, feeder, &features);
 
@@ -873,12 +988,14 @@ void pcnn_arch_config_vdsr(struct model_t *model, struct feeder_t *feeder)
         features.type = LAYER_TYPE_CONV;
         features.std = 0.01;
         features.mean = 0;
-        features.pad = 1;
-        features.stride = 1;
+        features.pad_rows = 1;
+        features.pad_cols = 1;
+        features.stride_rows = 1;
+        features.stride_cols = 1;
         features.ReLU = 1;
         features.filter_rows = 3;
         features.filter_cols = 3;
-        features.output_depth = num_kernels;
+        features.output_channels = num_kernels;
         features.bottom_layer = model->num_layers - 1;
         pcnn_model_init_layer(model, feeder, &features);
     }
@@ -888,12 +1005,14 @@ void pcnn_arch_config_vdsr(struct model_t *model, struct feeder_t *feeder)
     features.type = LAYER_TYPE_CONV;
     features.std = 0.01;
     features.mean = 0;
-    features.pad = 1;
-    features.stride = 1;
+    features.pad_rows = 1;
+    features.pad_cols = 1;
+    features.stride_rows = 1;
+    features.stride_cols = 1;
     features.ReLU = 0;
     features.filter_rows = 3;
     features.filter_cols = 3;
-    features.output_depth = 3;
+    features.output_channels = 3;
     features.bottom_layer = model->num_layers - 1;
     features.loss_type = LOSS_TYPE_MAE;
     features.skip_from = -1; // input is directly added to the activations

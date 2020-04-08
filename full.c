@@ -75,7 +75,7 @@ int pcnn_full_bp(int op, int count, struct layer_t *bottom, struct layer_t *top,
         area = bottom->output_rows * bottom->output_cols;
 
 #pragma omp parallel for private(j,k,off,rowidx)
-        for(i=0; i<bottom->output_depth; i++){
+        for(i=0; i<bottom->output_channels; i++){
             off = i*count*area;
             rowidx = i*area;
             for(j=0; j<count; j++){

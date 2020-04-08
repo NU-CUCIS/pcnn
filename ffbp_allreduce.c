@@ -119,10 +119,10 @@ void pcnn_ffbp_allreduce_backprop(int imgidx, int op, struct feeder_t *feeder, s
         while(queue->flag_reduce_l == 1)
             pthread_cond_wait(&queue->cond, &queue->mut);
         pthread_mutex_unlock(&queue->mut);
-        model->loss = param->global_loss;
+        model->loss = (param->global_loss / feeder->batch_size);
     }
     else{
-        model->loss = param->local_loss;
+        model->loss = (param->local_loss / feeder->batch_size);
     }
 
     /* Backpropagate the errors going through the fully-connected layers 

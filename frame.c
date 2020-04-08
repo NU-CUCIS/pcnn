@@ -53,29 +53,16 @@ static void pcnn_frame_test(struct feeder_t *feeder, struct model_t *model, stru
 
     param->num_corrects = 0;
     param->custom_output = 0;
+    param->num_processed_batches = 0;
+    param->current_test_index = 0;
 
     /* Feed-forward all the test samples. */
-    param->current_test_index = 0;
     while((param->current_test_index + feeder->batch_size) < feeder->num_test_images){
         pcnn_feeder_get_minibatch(1, param->current_test_index, model, feeder, queue);
         pcnn_feeder_subtract_mean_image(feeder);
         (*model->feedforward)(0, OPERATION_TYPE_VALIDATION, feeder, model, param, queue);
         param->current_test_index += (feeder->batch_size * queue->num_groups);
-        
-#if DEBUG
-        if(model->task_type == TASK_TYPE_CLASSIFICATION){
-            printf("R%d [%s][%d] (%d/%d) Accurate predictions on the test samples: %d/%d\n",
-                    queue->rank, __FUNCTION__,__LINE__, param->current_test_index,
-                                           feeder->num_test_images,
-                                           param->num_corrects,
-                                           param->current_test_index);
-        }
-        else if(model->task_type == TASK_TYPE_REGRESSION){
-            printf("[%d/%d] testing... the average PSNR: %f\n", param->current_test_index,
-                                                                feeder->num_test_images,
-                                                                param->custom_output / (float)param->current_test_index);
-        }
-#endif
+        param->num_processed_batches++;
     }
 	
     /* Reduce the local number of accurate predictions across all the workers. */
@@ -98,13 +85,14 @@ static void pcnn_frame_test(struct feeder_t *feeder, struct model_t *model, stru
             MPI_Allreduce(&param->custom_output, &PSNR, 1, MPI_FLOAT, MPI_SUM, queue->world);
         else
             PSNR = param->custom_output;
+        PSNR /= (queue->num_groups * param->num_processed_batches);
 
         if(queue->group_id == 0 && queue->rank == 0){
             fd = fopen("acc.txt", "a+");
-            fprintf(fd, "%11.8f\n", PSNR / (float)param->current_test_index);
+            fprintf(fd, "%11.8f\n", PSNR);
             fflush(fd);
             fclose(fd);
-            printf("Accuracy: %4.2f\n", PSNR / (float)param->current_test_index);
+            printf("Accuracy: %4.2f\n", PSNR);
         }
     }
 
@@ -114,7 +102,6 @@ static void pcnn_frame_test(struct feeder_t *feeder, struct model_t *model, stru
 static int pcnn_frame_train(struct feeder_t *feeder, struct model_t *model, struct param_t *param, struct comm_queue_t *queue)
 {
     int i;
-    int num_processed_batches;
     double time;
     
     if(model->mode == 1){
@@ -127,6 +114,8 @@ static int pcnn_frame_train(struct feeder_t *feeder, struct model_t *model, stru
         param->epoch = i;
         param->num_corrects = 0;
         param->custom_output = 0.0f;
+        param->epoch_loss = 0;
+        param->num_processed_batches = 0;
 
         if(queue->group_id == 0 && queue->rank == 0)
             printf("Epoch %d/%d lr: %f batch size: %d\n", param->epoch + 1, model->num_epochs, model->learning_rate, feeder->batch_size); 
@@ -142,10 +131,7 @@ static int pcnn_frame_train(struct feeder_t *feeder, struct model_t *model, stru
 
         time = MPI_Wtime();
 
-        param->epoch_loss = 0;
         param->current_index = 0;
-        param->num_lazy_updates = 0;
-        num_processed_batches = 0;
         while((param->current_index + (feeder->batch_size * queue->num_groups)) <= feeder->num_train_images){
             if(model->optimizer == OPTIMIZER_ADAM){
                 param->beta1_decay *= model->beta1;
@@ -157,9 +143,9 @@ static int pcnn_frame_train(struct feeder_t *feeder, struct model_t *model, stru
             pcnn_frame_process_batch(0, feeder, model, param, queue);
             param->current_index += (feeder->batch_size * queue->num_groups);
             param->epoch_loss += model->loss;
-            num_processed_batches++;
+            param->num_processed_batches++;
 
-            if(num_processed_batches % 100 == 0){
+            if(param->num_processed_batches % 10 == 0){
                 if(model->task_type == TASK_TYPE_CLASSIFICATION)
                     printf("[%d/%d] training... number of accurate predictions: %d\n", param->current_index,
                                                                                        feeder->num_train_images,
@@ -167,7 +153,7 @@ static int pcnn_frame_train(struct feeder_t *feeder, struct model_t *model, stru
                 else if(model->task_type == TASK_TYPE_REGRESSION)
                     printf("[%d/%d] training... the average PSNR: %f\n", param->current_index,
                                                                          feeder->num_train_images,
-                                                                         param->custom_output / (float)param->current_index);
+                                                                         param->custom_output / (float)param->num_processed_batches);
             }
 
             if(model->test_per_epoch == 0 &&
@@ -177,7 +163,7 @@ static int pcnn_frame_train(struct feeder_t *feeder, struct model_t *model, stru
             }
         }
 
-        param->epoch_loss /= (float)(num_processed_batches * queue->nproc);
+        param->epoch_loss /= (float)param->num_processed_batches;
 
         if(model->task_type == TASK_TYPE_CLASSIFICATION){
             printf("[%d/%d] training... number of accurate predictions: %d\n", param->current_index,
@@ -187,9 +173,9 @@ static int pcnn_frame_train(struct feeder_t *feeder, struct model_t *model, stru
         else if(model->task_type == TASK_TYPE_REGRESSION){
             printf("[%d/%d] training... the average PSNR: %f\n", param->current_index,
                                                                  feeder->num_train_images,
-                                                                 param->custom_output / (float)param->current_index);
+                                                                 param->custom_output / (float)param->num_processed_batches);
         }
-        printf("%d batches has been processed in %f sec epoch_loss: %f\n", num_processed_batches, MPI_Wtime() - time, param->epoch_loss);
+        printf("%d batches has been processed in %f sec epoch_loss: %f\n", param->num_processed_batches, MPI_Wtime() - time, param->epoch_loss);
         param->num_trained_epochs++;
 
         if(model->test_per_epoch != 0)
@@ -201,11 +187,6 @@ static int pcnn_frame_train(struct feeder_t *feeder, struct model_t *model, stru
             sprintf(name, "loss-g%d.txt", queue->group_id);
             fd = fopen(name, "a");
             fprintf(fd, "%f\n", param->epoch_loss);
-            fclose(fd);
-
-            sprintf(name, "lazyupdates-g%d.txt", queue->group_id);
-            fd = fopen(name, "a");
-            fprintf(fd, "%d\n", param->num_lazy_updates);
             fclose(fd);
         }
     }

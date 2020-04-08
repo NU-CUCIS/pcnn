@@ -8,6 +8,7 @@ struct feeder_t{
     int num_train_batches;
     int num_test_images;
     int num_test_batches;
+    int image_channels;
     int image_depth;
     int image_width;
     int image_height;

@@ -14,16 +14,22 @@ struct feature_t{
     int loss_type;
     int batch_norm;
 
-    int output_depth;
+    int output_channels;
+    int filter_depth;
     int filter_rows;
     int filter_cols;
 
     int num_channels;
-    int num_image_rows;
-    int num_image_cols;
+    int image_depth;
+    int image_rows;
+    int image_cols;
 
-    int pad;
-    int stride;
+    int pad_depth;
+    int pad_rows;
+    int pad_cols;
+    int stride_depth;
+    int stride_rows;
+    int stride_cols;
 
     float mean;
     float std;
@@ -41,13 +47,16 @@ struct layer_t{
     int top_trainable_layer;
     int bottom_layer;
 
+    int input_channels;
     int input_depth;
     int input_rows;
     int input_cols;
 
+    int filter_depth;
     int filter_rows;
     int filter_cols;
 
+    int output_channels;
     int output_depth;
     int output_rows;
     int output_cols;
@@ -68,10 +77,6 @@ struct layer_t{
      * We use MPI_Alltoallv and MPI_Allgatherv for communications. */
     int aligned_weight;
 
-    /* lazy update */
-    float *local_accum;
-    float *global_accum;
-
     /* pointers */
     int *sdispls_weight;
     int *rdispls_weight;
@@ -89,8 +94,12 @@ struct layer_t{
     float *weight;
     float *bias;
 
-    int pad;
-    int stride;
+    int pad_depth;
+    int pad_rows;
+    int pad_cols;
+    int stride_depth;
+    int stride_rows;
+    int stride_cols;
 
     int ReLU;
     int loss_type;
@@ -169,14 +178,6 @@ struct param_t{
     float global_loss;
     float epoch_loss;
 
-    /* lazy update */
-    float *local_accum;
-    float *global_accum;
-    int total_accum_size;
-    int num_lazy_updates;
-    int num_accumulated;
-    int interval;
-
     /* batch normalization */
     float *multiplier;
     float *sums;
@@ -190,6 +191,7 @@ struct param_t{
     int current_index;
     int current_test_index;
     int num_updates;
+    int num_processed_batches;
     int num_trained_epochs;
     int total_size;
     int bn_param_size;
@@ -224,9 +226,6 @@ struct model_t{
 
     float upsample_ratio;
 
-    /* lazy update */
-    int b;
-
     /* SGD */
     float momentum;
     float weight_decay;
@@ -249,7 +248,6 @@ struct model_t{
     int optimizer;
     int overlap;
     int comm_pattern;
-    int num_lazy_layers;
 
     /* function pointers for feedforward and backpropagation stages */
     void (*feedforward)(int, int, struct feeder_t *, struct model_t *, struct param_t *, struct comm_queue_t *);

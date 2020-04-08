@@ -76,3 +76,45 @@ AC_LANG_POP(C++)
 
 AC_CONFIG_FILES([Makefile])
 AC_OUTPUT
+ 
+if test "x$LIBS" = x ; then
+   LIBS="-lopencv_core -lopencv_imgproc -lopencv_highgui -lopencv_imgcodecs"
+else
+   LIBS="$LIBS -lopencv_core -lopencv_imgproc -lopencv_highgui -lopencv_imgcodecs"
+fi
+
+CXXFLAGS="$CXXFLAGS -fopenmp"
+CFLAGS="$CFLAGS -fopenmp"
+
+AC_OUTPUT
+echo "------------------------------------------------------------------------------"
+echo \
+"
+   ${PACKAGE_NAME} Version ${PACKAGE_VERSION}
+
+"
+
+if test "x${CPPFLAGS}" != x ; then
+   echo "\
+              CPPFLAGS = ${CPPFLAGS}"
+fi
+echo "\
+              CFLAGS   = ${CFLAGS}"
+if test "${CXXFLAGS}" != x ; then
+   echo "\
+              CXXFLAGS = ${CXXFLAGS}"
+fi
+if test "x${LDFLAGS}" != x ; then
+   echo "\
+              LDFLAGS  = ${LDFLAGS}"
+fi
+if test "x${LIBS}" != x ; then
+   echo "\
+              LIBS     = ${LIBS}"
+fi
+
+echo "\
+
+   Now run 'make' to build the executable.
+
+------------------------------------------------------------------------------"

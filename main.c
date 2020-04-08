@@ -126,8 +126,8 @@ int main(int argc, char **argv)
         printf("---------------------------------------------------------\n");
         for(i=0; i<model->num_layers; i++){
             layer = model->layers[i];
-            printf("Layer %-2d: %-4d x %-4d x %-4d (ReLU: %d) (Batch Norm: %d)\n",
-                    layer->id,layer->output_depth, layer->output_rows, layer->output_cols,
+            printf("Layer %-2d: %-4d x %-4d x %-4d x %-4d (ReLU: %d) (Batch Norm: %d)\n",
+                    layer->id,layer->output_channels, layer->output_depth, layer->output_rows, layer->output_cols,
                     layer->ReLU, layer->batch_norm);
         }
 
