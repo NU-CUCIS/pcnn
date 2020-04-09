@@ -20,6 +20,17 @@ The dataset can be obtained [here](https://www.cs.toronto.edu/~kriz/cifar.html).
 #define DRRN 0
 #define VDSR 0
 ```
+
+* Specify the task type to classification in `config.h`.
+```
+/********** Task type *************************
+ * 0: CLASSIFICATION
+ * The typical image classification task.
+ * 1: REGRESSION
+ * Cost minimization task. (e.g., image restoration) */
+#define TASK_TYPE 0
+```
+
 * Specify the dataset in `config.h` as follows (#define CIFAR10 1).
 ```
 /********** Dataset settings ******************/
@@ -49,6 +60,7 @@ The dataset can be obtained [here](https://www.cs.toronto.edu/~kriz/cifar.html).
 #define CIFAR10_TRAIN_IMAGE5 "data_batch_5.bin"
 #define CIFAR10_TEST_IMAGE "test_batch.bin"
 ```
+
 * Check all the hyper-parameters defined in `config.h`.
 ```
 /********** Optimizer *************************
