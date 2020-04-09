@@ -1,5 +1,8 @@
-# CIFAR10 Classification with PCNN
-CIFAR10 is one of the most popular open benchmark datasets.
+# Classification with PCNN
+To solve classfication problems with PCNN, users should define the model architecture and specify the hyper-parameters.
+By default, PCNN supports a few open benchmark datasets, MNIST, CIFAR10, and ImageNet. 
+Let us use CIFAR10 as an example.
+CIFAR10 is a 10-class classification dataset that is publicly open.
 It consists of 3-channel (RGB) 50,000 training images of size 32 x 32 and 10,000 validation images.
 The dataset can be obtained [here](https://www.cs.toronto.edu/~kriz/cifar.html).
 
@@ -72,3 +75,4 @@ For building the code and input arguments, please refer to the README in `src` d
 mpiexec -n 4 -f nodes ./pcnn -s 1 -e 160
 ```
 
+## Training Results
