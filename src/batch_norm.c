@@ -53,11 +53,15 @@ static void pcnn_bn_normalize_ff(int op, struct layer_t *layer, struct model_t *
     int lda, ldb, ldc;
     int m, n, k;
     int incx, incy;
+    int channel_size;
 
     mean = (float *)malloc(sizeof(float) * layer->output_channels);
     variance = (float *)malloc(sizeof(float) * layer->output_channels);
 
-    scale = 1.0f / (feeder->local_batch_size * layer->output_rows * layer->output_cols);
+    channel_size = layer->output_depth *
+                   layer->output_rows *
+                   layer->output_cols;
+    scale = 1.0f / (feeder->local_batch_size * channel_size);
 
     /* Calculate the mean outputs. */
     if(op == OPERATION_TYPE_TRAINING){
@@ -65,7 +69,7 @@ static void pcnn_bn_normalize_ff(int op, struct layer_t *layer, struct model_t *
         x = param->multiplier;
         y = mean;
         m = layer->output_channels;
-        n = feeder->local_batch_size * layer->output_rows * layer->output_cols;
+        n = feeder->local_batch_size * channel_size;
         alpha = scale;
         beta = 0.0f;
         lda = n;
@@ -98,8 +102,8 @@ static void pcnn_bn_normalize_ff(int op, struct layer_t *layer, struct model_t *
     a = param->sums;
     b = param->multiplier;
     c = layer->a;
-    m = layer->output_channels * feeder->local_batch_size;
-    n = layer->output_rows * layer->output_cols;
+    m = feeder->local_batch_size * layer->output_channels;
+    n = channel_size;
     k = 1;
     alpha = -1.0f;
     beta = 1.0f;
@@ -118,7 +122,7 @@ static void pcnn_bn_normalize_ff(int op, struct layer_t *layer, struct model_t *
         x = param->multiplier;
         y = variance;
         m = layer->output_channels;
-        n = feeder->local_batch_size * layer->output_rows * layer->output_cols;
+        n = feeder->local_batch_size * channel_size;
         alpha = scale;
         beta = 0.0f;
         lda = n;
@@ -140,7 +144,7 @@ static void pcnn_bn_normalize_ff(int op, struct layer_t *layer, struct model_t *
         incy = 1;
         cblas_saxpby(n, alpha, x, incx, beta, y, incy);
 
-        m = feeder->local_batch_size * layer->output_rows * layer->output_cols;
+        m = feeder->local_batch_size * channel_size; 
         variance_correction_factor = (m > 1) ? (float)(m)/(m-1) : 1;
 
         n = layer->output_channels;
@@ -182,8 +186,8 @@ static void pcnn_bn_normalize_ff(int op, struct layer_t *layer, struct model_t *
     a = param->sums;
     b = param->multiplier;
     c = layer->sqrt_var;
-    m = layer->output_channels * feeder->local_batch_size;
-    n = layer->output_rows * layer->output_cols;
+    m = feeder->local_batch_size * layer->output_channels;
+    n = channel_size;
     k = 1;
     alpha = 1.0f;
     beta = 0.0f;
@@ -212,7 +216,10 @@ static void pcnn_bn_scale_shift_ff(struct layer_t *layer, struct model_t *model,
     int area;
     float beta;
 
-    area = feeder->local_batch_size * layer->output_rows * layer->output_cols;
+    area = feeder->local_batch_size *
+           layer->output_depth *
+           layer->output_rows *
+           layer->output_cols;
 
     /* Multiply gamma first (scaling). */
     for (i = 0; i < layer->output_channels; i++)
@@ -238,8 +245,12 @@ static void pcnn_bn_normalize_bp(struct layer_t *layer, struct model_t *model, s
     int lda, ldb, ldc;
     int m, n, k;
     int incx, incy;
+    int channel_size;
 
-    scale = (float)-1. / (float)(feeder->local_batch_size * layer->output_rows * layer->output_cols);
+    channel_size = layer->output_depth *
+                   layer->output_rows *
+                   layer->output_cols;
+    scale = (float)-1. / (float)(feeder->local_batch_size * channel_size);
 
     temp = param->col;
     mean = &param->col[feeder->local_batch_size * layer->num_neurons];
@@ -255,7 +266,7 @@ static void pcnn_bn_normalize_bp(struct layer_t *layer, struct model_t *model, s
     x = param->multiplier;
     y = param->sums;
     m = feeder->local_batch_size * layer->output_channels;
-    n = layer->output_rows * layer->output_cols;
+    n = channel_size;
     alpha = 1.0f;
     beta = 0.0f;
     lda = n;
@@ -292,8 +303,8 @@ static void pcnn_bn_normalize_bp(struct layer_t *layer, struct model_t *model, s
     a = param->sums;
     b = param->multiplier;
     c = layer->e;
-    m = layer->output_channels * feeder->local_batch_size;
-    n = layer->output_rows * layer->output_cols;
+    m = feeder->local_batch_size * layer->output_channels;
+    n = channel_size;
     k = 1;
     alpha = 1.0f;
     beta = 0.0f;
@@ -310,7 +321,7 @@ static void pcnn_bn_normalize_bp(struct layer_t *layer, struct model_t *model, s
     x = param->multiplier;
     y = param->sums;
     m = feeder->local_batch_size * layer->output_channels;
-    n = layer->output_rows * layer->output_cols;
+    n = channel_size;
     alpha = 1.0f;
     beta = 0.0f;
     lda = n;
@@ -347,8 +358,8 @@ static void pcnn_bn_normalize_bp(struct layer_t *layer, struct model_t *model, s
     a = param->sums;
     b = param->multiplier;
     c = layer->e;
-    m = layer->output_channels * feeder->local_batch_size;
-    n = layer->output_rows * layer->output_cols;
+    m = feeder->local_batch_size * layer->output_channels;
+    n = channel_size;
     k = 1;
     alpha = 1.0f;
     beta = 1.0f;
@@ -381,7 +392,10 @@ static void pcnn_bn_scale_shift_bp(struct layer_t *layer, struct model_t *model,
     float *y;
     float alpha, beta;
 
-    area = feeder->local_batch_size * layer->output_rows * layer->output_cols;
+    area = feeder->local_batch_size *
+           layer->output_depth *
+           layer->output_rows *
+           layer->output_cols;
 
     /* 1. compute beta gradients */
     a = layer->e;
@@ -422,7 +436,6 @@ static void pcnn_bn_scale_shift_bp(struct layer_t *layer, struct model_t *model,
 void pcnn_bn_update(struct layer_t *layer, struct model_t *model, struct param_t *param, struct feeder_t *feeder, struct comm_queue_t *queue)
 {
     int i;
-    int length;
     float correction;
     float *weight_gradient_sums;
     float *bias_gradient_sums;
@@ -433,7 +446,6 @@ void pcnn_bn_update(struct layer_t *layer, struct model_t *model, struct param_t
         return;
 
     if(queue->nproc > 1){
-        length = layer->output_channels;
         /* Curretly, our distributed batch normalization is not synchronous.
          * Assuming the local batch size and number of neurons at each layer are 
          * large enough, each process normalizes the activations locally.
@@ -443,7 +455,6 @@ void pcnn_bn_update(struct layer_t *layer, struct model_t *model, struct param_t
         bias_gradient_sums = layer->local_dbeta;
     }
     else{
-        length = layer->output_channels;
         weight_gradient_sums = layer->local_dgamma;
         bias_gradient_sums = layer->local_dbeta;
     }
@@ -453,54 +464,52 @@ void pcnn_bn_update(struct layer_t *layer, struct model_t *model, struct param_t
          * the batch normalization coefficients. These batch normalization
          * coefficients are locally trained using a small batch size.
          * Regularization is not necessary in this case. */
-        cblas_sscal(length, scale, weight_gradient_sums, 1);
-        //cblas_sscal(length, queue->nproc, weight_gradient_sums, 1);
-        cblas_saxpby(length, model->learning_rate, weight_gradient_sums, 1, model->momentum, layer->prev_dgamma, 1);
-        cblas_saxpy(length, -1.0f, layer->prev_dgamma, 1, layer->gamma, 1);
+        cblas_sscal(layer->output_channels, scale, weight_gradient_sums, 1);
+        cblas_saxpby(layer->output_channels, model->learning_rate, weight_gradient_sums, 1, model->momentum, layer->prev_dgamma, 1);
+        cblas_saxpy(layer->output_channels, -1.0f, layer->prev_dgamma, 1, layer->gamma, 1);
 
-        cblas_sscal(length, scale, bias_gradient_sums, 1);
-        //cblas_sscal(length, queue->nproc, bias_gradient_sums, 1);
-        cblas_saxpby(length, model->learning_rate, bias_gradient_sums, 1, model->momentum, layer->prev_dbeta, 1);
-        cblas_saxpy(length, -1.0f, layer->prev_dbeta, 1, layer->beta, 1);
+        cblas_sscal(layer->output_channels, scale, bias_gradient_sums, 1);
+        cblas_saxpby(layer->output_channels, model->learning_rate, bias_gradient_sums, 1, model->momentum, layer->prev_dbeta, 1);
+        cblas_saxpy(layer->output_channels, -1.0f, layer->prev_dbeta, 1, layer->beta, 1);
     }
     else if(model->optimizer == OPTIMIZER_ADAM){
-        cblas_saxpby(length, (1.f - model->beta1) * scale, weight_gradient_sums, 1, model->beta1, layer->m_dgamma, 1);
+        cblas_saxpby(layer->output_channels, (1.f - model->beta1) * scale, weight_gradient_sums, 1, model->beta1, layer->m_dgamma, 1);
 
 #pragma omp parallel for
-        for(i=0; i<length; i++)
+        for(i=0; i<layer->output_channels; i++)
             weight_gradient_sums[i] = powf(weight_gradient_sums[i], 2);
-        cblas_saxpby(length, 1.f - model->beta2, weight_gradient_sums, 1, model->beta2, layer->v_dgamma, 1);
+        cblas_saxpby(layer->output_channels, 1.f - model->beta2, weight_gradient_sums, 1, model->beta2, layer->v_dgamma, 1);
 
 #pragma omp parallel for
-        for(i=0; i<length; i++)
+        for(i=0; i<layer->output_channels; i++)
             param->col[i] = 1.f / (sqrtf(layer->v_dgamma[i]) + model->epsilon);
 
 #pragma omp parallel for
-        for(i=0; i<length; i++)
+        for(i=0; i<layer->output_channels; i++)
             param->col[i] = param->col[i] * layer->m_dgamma[i];
 
         correction = sqrtf(1.f - param->beta2_decay) / (1.f - param->beta1_decay);
-        cblas_saxpby(length, -1.f * model->learning_rate * correction, param->col, 1, 1.f, layer->gamma, 1); 
+        cblas_saxpby(layer->output_channels, -1.f * model->learning_rate * correction, param->col, 1, 1.f, layer->gamma, 1); 
 
-        cblas_saxpby(length, (1.f - model->beta1) * scale, bias_gradient_sums, 1, model->beta1, layer->m_dbeta, 1);
+        cblas_saxpby(layer->output_channels, (1.f - model->beta1) * scale, bias_gradient_sums, 1, model->beta1, layer->m_dbeta, 1);
 
 #pragma omp parallel for
-        for(i=0; i<length; i++)
+        for(i=0; i<layer->output_channels; i++)
             bias_gradient_sums[i] = powf(bias_gradient_sums[i], 2);
-        cblas_saxpby(length, 1.f - model->beta2, bias_gradient_sums, 1, model->beta2, layer->v_dbeta, 1);
+        cblas_saxpby(layer->output_channels, 1.f - model->beta2, bias_gradient_sums, 1, model->beta2, layer->v_dbeta, 1);
 
 #pragma omp parallel for
-        for(i=0; i<length; i++)
+        for(i=0; i<layer->output_channels; i++)
             param->col[i] = 1.f / (sqrtf(layer->v_dbeta[i]) + model->epsilon);
 
 #pragma omp parallel for
-        for(i=0; i<length; i++)
+        for(i=0; i<layer->output_channels; i++)
             param->col[i] = param->col[i] * layer->m_dbeta[i];
 
-        cblas_saxpby(length, -1.f * model->learning_rate * correction, param->col, 1, 1.f, layer->beta, 1); 
+        cblas_saxpby(layer->output_channels, -1.f * model->learning_rate * correction, param->col, 1, 1.f, layer->beta, 1); 
     }
 
     /* Initialize memory space for the next iteration. */
-    memset(layer->local_dgamma, 0, sizeof(float) * length);
-    memset(layer->local_dbeta, 0, sizeof(float) * length);
+    memset(layer->local_dgamma, 0, sizeof(float) * layer->output_channels);
+    memset(layer->local_dbeta, 0, sizeof(float) * layer->output_channels);
 }

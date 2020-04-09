@@ -72,15 +72,15 @@ int pcnn_full_bp(int op, int count, struct layer_t *bottom, struct layer_t *top,
     cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, M, N, K, 1., A, lda, B, ldb, 0., C, ldc);
 
     if(bottom->type != LAYER_TYPE_FULL){
-        area = bottom->output_rows * bottom->output_cols;
+        area = bottom->output_depth * bottom->output_rows * bottom->output_cols;
 
 #pragma omp parallel for private(j,k,off,rowidx)
         for(i=0; i<bottom->output_channels; i++){
-            off = i*count*area;
-            rowidx = i*area;
+            off = i * count * area;
+            rowidx = i * area;
             for(j=0; j<count; j++){
                 for(k=0; k<area; k++)
-                    bottom->e[off++] = param->col[(rowidx+k)*count + j];
+                    bottom->e[off++] = param->col[(rowidx + k) * count + j];
             }
         }
     }
