@@ -445,6 +445,10 @@ void pcnn_ffbp_multistep_feedforward(int imgidx, int op, struct feeder_t *feeder
 
     /* Check the current accuracy. */
     pcnn_util_evaluate(imgidx, model, param, feeder, queue);
+
+    /* When running validation, we calculate loss here. */
+    if(op == OPERATION_TYPE_VALIDATION)
+        pcnn_loss_bp(imgidx, top, model, param, feeder);
 }
 
 void pcnn_ffbp_multistep_backprop(int imgidx, int op, struct feeder_t *feeder, struct model_t *model, struct param_t *param, struct comm_queue_t *queue)

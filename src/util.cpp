@@ -154,20 +154,7 @@ void pcnn_util_evaluate(int imgidx, struct model_t *model, struct param_t *param
             }
         }
         else if(model->task_type == TASK_TYPE_REGRESSION){
-            if(layer->loss_type == LOSS_TYPE_MSE){
-                float sum;
-
-                sum = 0;
-#pragma omp parallel for private(j, src_off, dst_off) reduction(+:sum)
-                for(i=0; i<feeder->local_batch_size; i++){
-                    src_off = (imgidx + i) * layer->num_neurons;
-                    for(j=0; j<layer->num_neurons; j++){
-                        dst_off = j * feeder->local_batch_size + i;
-                        sum += powf(layer->a[dst_off] - feeder->label[src_off++], 2);
-                    }
-                }
-                param->local_loss += (sum / (layer->num_neurons * feeder->local_batch_size));
-            }
+            /* We use loss as the evaluation metric for regression problems. */
         }
     }
 }
