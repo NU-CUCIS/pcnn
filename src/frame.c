@@ -218,9 +218,6 @@ static int pcnn_frame_train(struct feeder_t *feeder, struct model_t *model, stru
         printf("%d batches has been processed by each process in %f sec, epoch_loss: %f\n", param->num_processed_batches,
                                                                                             MPI_Wtime() - time,
                                                                                             param->epoch_loss);
-        if(model->test_per_epoch != 0)
-            pcnn_frame_test(feeder, model, param, queue);
-
         if(queue->rank == 0){
             FILE *fd;
             char name[100];
@@ -229,6 +226,9 @@ static int pcnn_frame_train(struct feeder_t *feeder, struct model_t *model, stru
             fprintf(fd, "%f\n", param->epoch_loss);
             fclose(fd);
         }
+
+        if(model->test_per_epoch != 0)
+            pcnn_frame_test(feeder, model, param, queue);
     }
     return 0;
 }
