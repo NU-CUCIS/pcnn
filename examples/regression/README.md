@@ -73,5 +73,18 @@ mpiexec -n 4 -f nodes ./pcnn -s 1 -e 400
 ## Training Results
 We present the DIV2K super-resolution results.
 All the experiments were performed on Cori KNL nodes, supercomputer at NERSC.
-We used all the hyper-parameter settings that appear in [Lim et. al]()(https://arxiv.org/abs/1707.02921).
+We used all the hyper-parameter settings that appear in [Lim et. al]()(https://arxiv.org/abs/1707.02921) besides minibatch size and learning rate.
+* Batch size: 64
+* Initial learning rate: 0.0004 (decayed after every 200 epochs)
+* Optimizer: Adam
+* Adam beta1: 0.9
+* Adam beta2: 0.999
+* Adam epsilon 1e-8
 
+We achieved validation PSNR of 33.59 dB after 1200 epochs of training.
+
+![div2kacc](https://github.com/swblaster/pcnn/blob/master/examples/regression/div2k_acc.jpg)
+
+Our parallel training on Cori achieved a speedup of 24.8 on 64 KNL nodes.
+
+![div2kscale](https://github.com/swblaster/pcnn/blob/master/examples/regression/div2k_scale.jpg)
