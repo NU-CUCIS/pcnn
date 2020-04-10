@@ -108,22 +108,11 @@ void pcnn_ffbp_allreduce_backprop(int imgidx, int op, struct feeder_t *feeder, s
     struct layer_t *bottom=NULL;
     struct comm_req_t req;
 
-    /* First, calculate the errors at the output layer. */
+    /* First, calculate the errors at the output layer.
+     * The locally calculated training loss is accumulated until
+     * the end of the epoch. */
     top = model->layers[model->num_layers-1];
     pcnn_loss_bp(imgidx, top, model, param, feeder);
-    if(queue->nproc > 1){
-        req.type = COMM_TYPE_REDUCE_L;
-        pcnn_comm_insert_req(model, queue, &req);
-
-        pthread_mutex_lock(&queue->mut);
-        while(queue->flag_reduce_l == 1)
-            pthread_cond_wait(&queue->cond, &queue->mut);
-        pthread_mutex_unlock(&queue->mut);
-        model->loss = (param->global_loss / feeder->batch_size);
-    }
-    else{
-        model->loss = (param->local_loss / feeder->batch_size);
-    }
 
     /* Backpropagate the errors going through the fully-connected layers 
     * and compute the gradients. */

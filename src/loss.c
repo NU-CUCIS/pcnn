@@ -81,10 +81,7 @@ static void pcnn_softmax_loss(int imgidx, struct layer_t *layer, struct model_t 
         max = j * feeder->local_batch_size + i;
         loss -= logf(layer->a[max]);
     }
-    param->local_loss = loss;
-#if DEBUG
-	printf("rank%d training loss: %f\n", model->rank, model->loss);
-#endif
+    param->local_loss += (loss / feeder->local_batch_size);
 }
 
 static void pcnn_softmax_bp(int imgidx, struct layer_t *layer, struct model_t *model, struct param_t *param, struct feeder_t *feeder)
@@ -141,7 +138,7 @@ static void pcnn_mse_bp(int imgidx, struct layer_t *layer, struct model_t *model
                 sum += powf(layer->e[dst_off], 2);
             }
         }
-        param->local_loss = sum / feeder->label_size;
+        param->local_loss += (sum / (layer->num_neurons * feeder->local_batch_size));
     }
 }
 

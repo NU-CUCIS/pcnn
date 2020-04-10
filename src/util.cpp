@@ -12,6 +12,7 @@
 #include "model.h"
 #include "feeder.h"
 #include "util.h"
+#include "comm.h"
 
 float sigmoid(float t)
 {
@@ -117,11 +118,11 @@ void pcnn_util_evaluate(int imgidx, struct model_t *model, struct param_t *param
     layer = model->layers[model->num_layers-1];
     if(layer->type == LAYER_TYPE_CONV || layer->type == LAYER_TYPE_UPSAMPLE){
         area = layer->output_rows * layer->output_cols;
-        image = (float *)malloc(sizeof(float) * layer->output_depth * area);
+        image = (float *)malloc(sizeof(float) * layer->output_channels * area);
         sum = 0;
         for(i=0; i<feeder->local_batch_size; i++){
             dst_off = 0;
-            for(j=0; j<layer->output_depth; j++){
+            for(j=0; j<layer->output_channels; j++){
                 src_off = (j * feeder->local_batch_size + i) * area;
                 for(k=0; k<layer->output_rows; k++){
                     for(l=0; l<layer->output_cols; l++){
@@ -134,22 +135,39 @@ void pcnn_util_evaluate(int imgidx, struct model_t *model, struct param_t *param
             }
             sum += pcnn_util_calc_PSNR(image, &feeder->label[(imgidx + i) * feeder->label_size], feeder->label_size);
         }
-        printf("The average PSNR: %f\n", (float)sum / feeder->local_batch_size);
-        param->custom_output += sum;
+        param->custom_output += (sum / feeder->batch_size);
         free(image);
     }
     else if(layer->type == LAYER_TYPE_FULL){
-        for(i=0; i<feeder->local_batch_size; i++){
-            max_value = layer->a[i];
-            max_neuron = 0;
-            for(j=1; j<feeder->label_size; j++){
-                if(max_value < layer->a[j * feeder->local_batch_size + i]){
-                    max_value = layer->a[j * feeder->local_batch_size + i];
-                    max_neuron = j;
+        if(model->task_type == TASK_TYPE_CLASSIFICATION){
+            for(i=0; i<feeder->local_batch_size; i++){
+                max_value = layer->a[i];
+                max_neuron = 0;
+                for(j=1; j<feeder->label_size; j++){
+                    if(max_value < layer->a[j * feeder->local_batch_size + i]){
+                        max_value = layer->a[j * feeder->local_batch_size + i];
+                        max_neuron = j;
+                    }
                 }
+                if(feeder->label[(imgidx + i) * feeder->label_size + max_neuron])
+                    param->num_corrects += 1;
             }
-            if(feeder->label[(imgidx + i) * feeder->label_size + max_neuron])
-                param->num_corrects += 1;
+        }
+        else if(model->task_type == TASK_TYPE_REGRESSION){
+            if(layer->loss_type == LOSS_TYPE_MSE){
+                float sum;
+
+                sum = 0;
+#pragma omp parallel for private(j, src_off, dst_off) reduction(+:sum)
+                for(i=0; i<feeder->local_batch_size; i++){
+                    src_off = (imgidx + i) * layer->num_neurons;
+                    for(j=0; j<layer->num_neurons; j++){
+                        dst_off = j * feeder->local_batch_size + i;
+                        sum += powf(layer->a[dst_off] - feeder->label[src_off++], 2);
+                    }
+                }
+                param->local_loss += (sum / (layer->num_neurons * feeder->local_batch_size));
+            }
         }
     }
 }

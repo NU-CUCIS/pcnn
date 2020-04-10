@@ -37,22 +37,11 @@ static void pcnn_ffbp_multistep_backprop_no_overlap(int imgidx, int op, struct f
     struct layer_t *bottom=NULL;
     struct comm_req_t req;
 
-    /* First, calculate the errors at the output layer. */
+    /* First, calculate the errors at the output layer.
+     * The locally calculated training loss is accumulated until
+     * the end of the epoch. */
     top = model->layers[model->num_layers-1];
     pcnn_loss_bp(imgidx, top, model, param, feeder);
-    if(queue->nproc > 1){
-        req.type = COMM_TYPE_REDUCE_L;
-        pcnn_comm_insert_req(model, queue, &req);
-
-        pthread_mutex_lock(&queue->mut);
-        while(queue->flag_reduce_l == 1)
-            pthread_cond_wait(&queue->cond, &queue->mut);
-        pthread_mutex_unlock(&queue->mut);
-        model->loss = (param->global_loss / feeder->batch_size);
-    }
-    else{
-        model->loss = param->local_loss;
-    }
 
     /* The errors are propagated back, going through all the model layers. */
     for(i=model->num_layers-1; i>=0; i--){
@@ -216,22 +205,11 @@ static void pcnn_ffbp_multistep_backprop_overlap(int imgidx, int op, struct feed
     struct layer_t *top = NULL;
     struct layer_t *bottom = NULL;
 
-    /* First, calculate the errors at the output layer. */
+    /* First, calculate the errors at the output layer.
+     * The locally calculated training loss is accumulated until
+     * the end of the epoch. */
     top = model->layers[model->num_layers-1];
     pcnn_loss_bp(imgidx, top, model, param, feeder);
-    if(queue->nproc > 1){
-        req.type = COMM_TYPE_REDUCE_L;
-        pcnn_comm_insert_req(model, queue, &req);
-
-        pthread_mutex_lock(&queue->mut);
-        while(queue->flag_reduce_l == 1)
-            pthread_cond_wait(&queue->cond, &queue->mut);
-        pthread_mutex_unlock(&queue->mut);
-        model->loss = (param->global_loss / feeder->batch_size);
-    }
-    else{
-        model->loss = (param->local_loss / feeder->batch_size);
-    }
 
     /* From the top to the bottom, compute the errors and propagate back. */
     for(i=model->num_layers - 1; i>=0; i--){
