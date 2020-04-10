@@ -95,6 +95,8 @@ We used popular training settings as follows.
 + Optimizer: minibatch SGD
 + Weight decay factor: 0.0001
 
+The convergence validation accuracy is 91.72%.
+
 ![cifar10acc](https://github.com/swblaster/pcnn/blob/master/examples/classification/cifar10_acc.jpg)
 
 The parallel training achieves a speedup of 4.2x on 8 KNL nodes and the speedup has been saturated.
@@ -103,3 +105,19 @@ When running on more than 4 nodes, the communication time becomes longer than th
 More performance results are available in our publications ([link](http://cucis.eecs.northwestern.edu/publications/pdf/LAB18.pdf))
 
 ![cifar10scale](https://github.com/swblaster/pcnn/blob/master/examples/classification/cifar10_scale.jpg)
+
+Finally, we also present ImageNet training results.
+We trained ResNet50 with the following settings.
++ Batch size: 256
++ Initial learning rate: 0.1 (decayed by a factor of 10 after 30, 60, and 80 epochs)
++ Optimizer: minibatch SGD
++ Weight decay factor: 0.0005
+
+The top-1 validation accuracy is 75.28%. Note that this accuracy is slightly lower than the state-of-the-art accuracy due to the light data augmentation. With richer data augmentation methods, a higher accuracy can be expected.
+
+![imagenetacc](https://github.com/swblaster/pcnn/blob/master/examples/classification/imagenet_acc.jpg)
+
+We also performed the training on Cori KNL nodes.
+The parallel training achieved a speedup of 50.96 on 128 KNL nodes.
+
+![imagenetscale](https://github.com/swblaster/pcnn/blob/master/examples/classification/imagenet_scale.jpg)
