@@ -88,3 +88,18 @@ mpiexec -n 4 -f nodes ./pcnn -s 1 -e 160
 ```
 
 ## Training Results
+The training was performed on Cori KNL nodes, Supercomputer at NERSC.
+We used popular training settings as follows.
++ Batch size: 128
++ Initial learning rate: 0.1 (decayed by a factor of 10 after 80 and 120 epochs)
++ Optimizer: minibatch SGD
++ Weight decay factor: 0.0001
+
+![cifar10acc](https://github.com/swblaster/pcnn/blob/master/examples/classification/cifar10_acc.jpg)
+
+The parallel training achieves a speedup of 4.2x on 8 KNL nodes and the speedup has been saturated.
+Until 4 nodes, most of the communications are overlapped with the computations and the close-linear speedup is achieved.
+When running on more than 4 nodes, the communication time becomes longer than the computation time and the exposed communication time ends up being dominant over the computation time.
+More performance results are available in our publications ([link](http://cucis.eecs.northwestern.edu/publications/pdf/LAB18.pdf))
+
+![cifar10scale](https://github.com/swblaster/pcnn/blob/master/examples/classification/cifar10_scale.jpg)
