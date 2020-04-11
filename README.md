@@ -1,14 +1,17 @@
-# Parallel Convolutional Neural Network (PCNN)
-PCNN is a light-weighted open-source C/C++ software framework for Convolutional Neural Network (CNN).
-This software program can be used to design, train, and deploy a deep CNN model for general classification/regression problems.
-PCNN is designed to run on CPU-based distributed-memory platforms, using MPI for inter-process communications.
-The training is parallelized using data parallelism.
+# PCNN: Parallel Convolutional Neural Network
+PCNN is an open-source C/C++ software implementation of Convolutional Neural Network (CNN).
+It can be used to train and deploy a deep CNN model for general classification/regression problems.
+The parallelization strategy used in PCNN is data parallelism and developed to run on
+CPU-based distributed-memory parallel computers, using MPI for inter-process communications.
+It has been evaluated on [Cori](https://www.nersc.gov/systems/cori/), the Cray XC40
+supercomputer at [NERSC](https://www.nersc.gov). 
 
 ## Source Tree Structure
- + src: PCNN source code. To build an executable, refer to the src/README.md.
- + use_cases
-   + classification: documents about how to use PCNN for classification problems (CIFAR10 and ImageNet)
-   + regression: documents about how to use PCNN for regression problems (DIV2K image super-resolution)
+ + [./src](src): The folder contains the source codes.
+   To build an executable, refer to the src/README.md.
+ + Use cases
+   + [./use_cases/classification](use_cases/classification): A use case of running PCNN for classification problems using CIFAR10 and ImageNet data.
+   + [./use_cases/regression](use_cases/regression): A use case of running  PCNN for regression problems using DIV2K image super-resolution data.
 
 ## Questions/Comments
  + Sunwoo Lee <slz839@eecs.northwestern.edu>
