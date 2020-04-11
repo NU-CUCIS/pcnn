@@ -1,6 +1,6 @@
 # Parallel Convolutional Neural Network (PCNN)
 
-This software program is a light-weighted parallel Convolutional Neural Network (CNN) training framework written in C and C++.
+This software program is a light-weighted open-source C/C++ software framework for parallel Convolutional Neural Network (CNN) training.
 The training is parallelized using MPI-OpenMP programming model.
 Given the user-defined model architecture and the input data, PCNN trains the model and returns the accuracy curves and the model parameters (checkpoint files).
 
@@ -22,20 +22,21 @@ Given the user-defined model architecture and the input data, PCNN trains the mo
  ```
 3. Run 'configure' with the OpenCV path, for example
  ```
- ./configure --with-opencv=$HOME/lib/opencv
+ ./configure --with-opencv=$HOME/lib/OPENCV/3.4.9 CFLAGS=-O2
  ```
 4. Run 'make' to create the executable 'pcnn'.
 
 ## Command to Run
 * Command-line options are:
  ```
-  mpiexec -n <np> ./pcnn [-s num] [-e num] [-t path] [-g num] [-i num]
+  mpiexec -n <np> ./pcnn [-s num] [-e num] [-t path] [-g num] [-i num] [-m num]
 
   [-s]         enable training data shuffling (default: 0)
   [-e]         number of epochs to run (default: 1)
   [-t]         path to the checkpoint files
   [-g]         number of groups in local SGD training
   [-i]         model parameter averaging interval in local SGD training
+  [-m]         0: training / 1:evaluation mode (default: 0)
  ```
 
 ## Supported CNN features
@@ -46,8 +47,8 @@ Given the user-defined model architecture and the input data, PCNN trains the mo
  - localSGD
 
 ### Type of Model Layers
- - Convolution layers
- - Max/Avg-pooling layers
+ - 2D/3D Convolution layers
+ - 2D/3D Max/Avg-pooling layers
  - Fully-connected layers
  - Upsampling layers (super-resolution)
  
@@ -71,15 +72,10 @@ PCNN supports data-parallelism using two communication patterns:
  - Multi-step communications for gradient averaging
  
 ## Supported Dataset
-PCNN supports a couple of popular classification benchmark datasets: MNIST, CIFAR-10, and ImageNet, and a few regression dataset: DIV2K and Phantom. Ghost batch is the psuedo dataset that can be used for timing measurement. The proper flag and path variables should be set in config.h.
-
-Example: CIFAR-10 dataset
-1. Set #define CIFAR10 to 1 and all the other dataset flags to 0. 
-2. Set #define CIFAR_TRAIN_TOP_DIR to the path where the training data is located.
-3. Set #define CIFAR_TEST_TOP_DIR to the path where the test data is located.
-4.  make clean; make
-
+PCNN supports a couple of popular classification benchmark datasets: MNIST, CIFAR-10, and ImageNet, and a few regression dataset: DIV2K and Phantom.
+Ghost batch is the psuedo dataset that can be used for timing measurement. The proper flag and path variables should be set in config.h.
 For other datasets, the path variables should be defined in a similar way.
+Please refer to the README files in `use_cases` directory.
 
 ## Predefined Model Architectures
 PCNN supports a few popular model architectures in arch.c. The model should be chosen in config.h.
@@ -88,16 +84,6 @@ PCNN supports a few popular model architectures in arch.c. The model should be c
  - VGG-16
  - DRRN
  - EDSR
-
-## How to Setup Input Data
-To use PCNN, the data feeding part should be implemented by users.
-1. `DEPTH`, `WIDTH`, and `HEIGHT` of each training sample should be defined in config.h
-2. `LABEL_SIZE` should be defined in config.h, which indicates the problem type (e.g., 10 for 10-class classification problems).
-3. All the hyper-parameters should be specified in config.h, including mini-batch size, initial learning rate, and many others.
-4. `TRAIN_TOP_DIR`, `TEST_TOP_DIR`, `TRAIN_LIST`, and `TEST_LIST` should be defined in config.h
-
-Once all the dataset-dependent features are described in config.h, an appropriate data feeding function should be implemented.
-By default, CIFAR10 and ImageNet data feeding functions are provided in feeder.c.
 
 ## Checkpointing
 ### Checkpoint Configurations
@@ -112,6 +98,7 @@ In config.h, `CHECKPOINT_INTERVAL` indicates how frequently the model parameters
 
 ## Questions/Comments:
 * Sunwoo Lee <slz839@eecs.northwestern.edu>
+* Qiao Kang <qkt561@eecs.northwestern.edu>
 * Wei-keng Liao <wkliao@eecs.northwestern.edu>
 
 ## Project funding supports:
