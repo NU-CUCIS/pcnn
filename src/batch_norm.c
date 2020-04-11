@@ -49,11 +49,11 @@ static void pcnn_bn_normalize_ff(int op, struct layer_t *layer, struct model_t *
     float *variance = NULL;
     float *a, *b, *c, *x, *y;
     float alpha, beta;
-    float bn_scale_factor;
     int lda, ldb, ldc;
     int m, n, k;
     int incx, incy;
     int channel_size;
+    const float bn_scale_factor = (float)1.0f / layer->bn_scale_factor;
 
     mean = (float *)malloc(sizeof(float) * layer->output_channels);
     variance = (float *)malloc(sizeof(float) * layer->output_channels);
@@ -78,11 +78,7 @@ static void pcnn_bn_normalize_ff(int op, struct layer_t *layer, struct model_t *
         cblas_sgemv(CblasRowMajor, CblasNoTrans, m, n, alpha, a, lda, x, incx, beta, y, incy);
     }
     else{
-        bn_scale_factor = (float)1.0f / layer->bn_scale_factor;
-#pragma omp parallel for
-        for(i=0; i<layer->output_channels; i++){
-            mean[i] = layer->global_mean[i] * bn_scale_factor;
-        }
+        cblas_saxpby(layer->output_channels, bn_scale_factor, layer->global_mean, 1, 0.0, mean, 1);
     }
 
     /* Subtract the mean from output. */
@@ -157,11 +153,7 @@ static void pcnn_bn_normalize_ff(int op, struct layer_t *layer, struct model_t *
         cblas_saxpby(n, alpha, x, incx, beta, y, incy);
     }
     else{
-        bn_scale_factor = (float)1.0f / layer->bn_scale_factor;
-#pragma omp parallel for
-        for(i=0; i<layer->output_channels; i++){
-            variance[i] = layer->global_variance[i] * bn_scale_factor;
-        }
+        cblas_saxpby(layer->output_channels, bn_scale_factor, layer->global_variance, 1, 0.0, variance, 1);
     }
 
 #pragma omp parallel for
@@ -254,12 +246,8 @@ static void pcnn_bn_normalize_bp(struct layer_t *layer, struct model_t *model, s
 
     temp = param->col;
     mean = &param->col[feeder->local_batch_size * layer->num_neurons];
-
     memcpy(temp, layer->e, sizeof(float) * feeder->local_batch_size * layer->num_neurons);
-
-#pragma omp parallel for
-    for(i=0; i<feeder->local_batch_size * layer->num_neurons; i++)
-        layer->e[i] = temp[i] * layer->a_norm[i];
+    cblas_saxpby(feeder->local_batch_size * layer->num_neurons, 1, temp, 1, 1, layer->a_norm, 1);
 
     /* Calculate the mean outputs. */
     a = layer->e;
@@ -411,10 +399,7 @@ static void pcnn_bn_scale_shift_bp(struct layer_t *layer, struct model_t *model,
     cblas_sgemv(CblasRowMajor, CblasNoTrans, m, n, alpha, a, lda, x, incx, beta, y, incy);
 
     /* 2. compute gamma gradients */
-#pragma omp parallel for
-    for (i = 0; i < layer->output_channels * area; i++) {
-        param->col[i] = layer->e[i] * layer->a_norm[i];
-    }
+    cblas_saxpby(layer->output_channels * area, 1, layer->e, 1, 1, layer->a_norm, 1);
 
     a = param->col;
     x = param->multiplier;
