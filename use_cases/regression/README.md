@@ -83,8 +83,12 @@ We used all the hyper-parameter settings that appear in [Lim et. al]()(https://a
 
 We achieved validation PSNR of 33.59 dB after 1200 epochs of training.
 
-![div2kacc](https://github.com/swblaster/pcnn/blob/master/examples/regression/div2k_acc.jpg)
+<p align="center">
+<img align="center" src="div2k_acc.jpg" alt="DIV2k accuracy curves" width="600">
+</p>
 
 Our parallel training on Cori achieved a speedup of 24.8 on 64 KNL nodes.
 
-![div2kscale](https://github.com/swblaster/pcnn/blob/master/examples/regression/div2k_scale.jpg)
+<p align="center">
+<img align="center" src="div2k_scale.jpg" alt="DIV2k scaling performance" width="600">
+</p>
