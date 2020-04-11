@@ -1,15 +1,16 @@
 # Parallel Convolutional Neural Network (PCNN)
-PCNN is a light-weighted open source software framework for parallel CNN training on distributed-memory platforms.
-PCNN is implemented in C/C++ language.
-For parallel training, MPI is used to implement data parallelism and each MPI process adopts OpenMP to utilize multiple compute cores.
+PCNN is a light-weighted open-source C/C++ software framework for Convolutional Neural Network (CNN).
+This software program can be used to solve classification/regression problems using deep CNNs.
+PCNN is designed to run on CPU-based distributed-memory platforms, using MPI for inter-process communications.
+The training is parallelized using data parallelism.
 
-## Repository Structure
- + src: PCNN source code
+## Source Tree Structure
+ + src: PCNN source code. To build an executable, refer to the src/README.md.
  + examples
    + classification: documents about how to use PCNN for classification problems (CIFAR10 and ImageNet)
    + regression: documents about how to use PCNN for regression problems (DIV2K image super-resolution)
 
-## Authors
+## Questions/Comments
  + Sunwoo Lee <slz839@eecs.northwestern.edu>
  + Qiao Kang <qkt561@eecs.northwestern.edu>
  + Wei-keng Liao <wkliao@eecs.northwestern.edu>
