@@ -123,7 +123,7 @@ static void pcnn_pool_avg_ff(int op, int count, struct layer_t *bottom, struct l
                                 }
                             }
                         }
-                        output[write_offset++] += sum / pool_size;
+                        output[write_offset++] = (sum / pool_size);
                     }
                 }
             }
