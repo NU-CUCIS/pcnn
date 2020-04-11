@@ -97,14 +97,18 @@ We used popular training settings as follows.
 
 The convergence validation accuracy is 91.72%.
 
-![cifar10acc](https://github.com/swblaster/pcnn/blob/master/examples/classification/cifar10_acc.jpg)
+<p align="center">
+<img align="center" src="cifar10_acc.jpg" alt="Cifar10 accuracy curves" width="600">
+</p>
 
 The parallel training achieves a speedup of 4.2x on 8 KNL nodes and the speedup has been saturated.
 Until 4 nodes, most of the communications are overlapped with the computations and the close-linear speedup is achieved.
 When running on more than 4 nodes, the communication time becomes longer than the computation time and the exposed communication time ends up being dominant over the computation time.
 More performance results are available in our publications ([link](http://cucis.eecs.northwestern.edu/publications/pdf/LAB18.pdf))
 
-![cifar10scale](https://github.com/swblaster/pcnn/blob/master/examples/classification/cifar10_scale.jpg)
+<p align="center">
+<img align="center" src="cifar10_scale.jpg" alt="Cifar10 scaling performance" width="600">
+</p>
 
 Finally, we also present ImageNet training results.
 We trained ResNet50 with the following settings.
@@ -115,9 +119,13 @@ We trained ResNet50 with the following settings.
 
 The top-1 validation accuracy is 75.28%. Note that this accuracy is slightly lower than the state-of-the-art accuracy due to the light data augmentation. With richer data augmentation methods, a higher accuracy can be expected.
 
-![imagenetacc](https://github.com/swblaster/pcnn/blob/master/examples/classification/imagenet_acc.jpg)
+<p align="center">
+<img align="center" src="imagenet_acc.jpg" alt="ImageNet accuracy curves" width="600">
+</p>
 
 We also performed the training on Cori KNL nodes.
 The parallel training achieved a speedup of 50.96 on 128 KNL nodes.
 
-![imagenetscale](https://github.com/swblaster/pcnn/blob/master/examples/classification/imagenet_scale.jpg)
+<p align="center">
+<img align="center" src="imagenet_scale.jpg" alt="ImageNet performance results" width="600">
+</p>
