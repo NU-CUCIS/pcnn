@@ -129,3 +129,14 @@ The parallel training achieved a speedup of 50.96 on 128 KNL nodes.
 <p align="center">
 <img align="center" src="imagenet_scale.jpg" alt="ImageNet performance results" width="600">
 </p>
+
+## Questions/Comments
+ + Sunwoo Lee <<slz839@eecs.northwestern.edu>>
+ + Qiao Kang <<qkt561@eecs.northwestern.edu>>
+ + Wei-keng Liao <<wkliao@eecs.northwestern.edu>>
+
+## Project Funding Support
+This material is based upon work supported by the U.S. Department of Energy,
+Office of Science, Office of Advanced Scientific Computing Research, Scientific
+Discovery through Advanced Computing ([SciDAC](https://www.scidac.gov)) program,
+[RAPIDS Institute](https://rapids.lbl.gov).
