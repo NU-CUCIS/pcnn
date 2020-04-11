@@ -8,7 +8,7 @@ supercomputer at [NERSC](https://www.nersc.gov).
 
 This work aims to provide a good scalability of parallel CNN training while achieving the same accuracy as that of sequential training.
 PCNN exploits the overlap of computation and communication to improve the scalability.
-The locally computed gradients are averaged across all the processes using the communication algorithm proposed in [Lee et. al](http://cucis.eecs.northwestern.edu/publications/pdf/LAB18.pdf), which has a cheaper communication cost than allreduce-based approach.
+In order to maximize the degree of overlap, the gradients are averaged across all the processes using communication-efficient gradient averaging algorithm proposed in [Lee et. al](http://cucis.eecs.northwestern.edu/publications/pdf/LAB18.pdf).
 
 ## Source Tree Structure
  + [./src](src): The folder contains the source codes.
