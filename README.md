@@ -6,7 +6,7 @@ The training is parallelized using data parallelism.
 
 ## Source Tree Structure
  + src: PCNN source code. To build an executable, refer to the src/README.md.
- + examples
+ + use_cases
    + classification: documents about how to use PCNN for classification problems (CIFAR10 and ImageNet)
    + regression: documents about how to use PCNN for regression problems (DIV2K image super-resolution)
 
