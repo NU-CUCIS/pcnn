@@ -40,7 +40,7 @@ int main(int argc, char **argv)
         printf("[%s][%d] MPI_Init_thread failed\n", __FUNCTION__,__LINE__);
     }
 
-    while((opt=getopt(argc, argv, "s:e:t:m:g:i:"))!=EOF){
+    while((opt=getopt(argc, argv, "s:e:t:m:"))!=EOF){
         if(opt == 'e'){
             num_epochs = atoi(optarg);
         }
@@ -54,12 +54,6 @@ int main(int argc, char **argv)
         }
         else if(opt == 'm'){
             mode = atoi(optarg);
-        }
-        else if(opt == 'g'){
-            num_groups = atoi(optarg);
-        }
-        else if(opt == 'i'){
-            sync_interval = atoi(optarg);
         }
         else{
             printf("usage: %s -g [number of groups for averaged SGD] -e [number of epochs for training] -s [1: shuffle / 0: non-shuffle]\n", argv[0]);

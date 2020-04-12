@@ -276,16 +276,9 @@ static void pcnn_ffbp_multistep_backprop_overlap(int imgidx, int op, struct feed
                     cblas_saxpy(top->num_local_gradients, 1, &top->global_sumws[j * top->num_local_gradients], 1, top->global_sumws, 1);
                 pcnn_model_partial_update_conv_layer(top, model, param, feeder, queue);
 
-                if(queue->num_groups > 1 && param->num_updates % queue->sync_interval == 0){
-                    req.type = COMM_TYPE_REDUCE_CONV_PARAM;
-                    req.layer_id = top->id;
-                    pcnn_comm_insert_req(model, queue, &req);
-                }
-                else{
-                    req.type = COMM_TYPE_GATHER_CONV_PARAM;
-                    req.layer_id = top->id;
-                    pcnn_comm_insert_req(model, queue, &req);
-                }
+                req.type = COMM_TYPE_GATHER_CONV_PARAM;
+                req.layer_id = top->id;
+                pcnn_comm_insert_req(model, queue, &req);
             }
         }
     }
@@ -332,51 +325,6 @@ static void pcnn_ffbp_multistep_backprop_overlap(int imgidx, int op, struct feed
 
                 if(queue->nproc > 1){
                     pcnn_model_partial_update_full_layer(top, model, param, feeder, queue);
-
-                    if(queue->num_groups > 1 && param->num_updates % queue->sync_interval == 0){
-                        req.type = COMM_TYPE_REDUCE_FULL_PARAM;
-                        req.layer_id = top->id;
-                        pcnn_comm_insert_req(model, queue, &req);
-                    }
-                    else{
-                        req.type = COMM_TYPE_GATHER_W;
-                        req.layer_id = top->id;
-                        pcnn_comm_insert_req(model, queue, &req);
-                    }
-                }
-            }
-        }
-    }
-
-    /* Once the gradients are all aggregated across groups,
-     * post an allgather for each layer within each group. 
-     * This routine is performed for local SGD only. */
-    if(queue->nproc > 1){
-        if(queue->num_groups > 1 && param->num_updates % queue->sync_interval == 0){
-            const float ratio = 1.f / queue->num_groups;
-            for(i=0; i<model->num_layers; i++){
-                top = model->layers[i];
-
-                if(top->type == LAYER_TYPE_CONV){
-                    pthread_mutex_lock(&queue->mut);
-                    while(queue->flag_reduce_p[top->id] == 1)
-                        pthread_cond_wait(&queue->cond, &queue->mut);
-                    pthread_mutex_unlock(&queue->mut);
-
-                    cblas_saxpby(top->num_local_gradients, ratio, top->global_sumws, 1, 0, top->local_sumws, 1);
-
-                    req.type = COMM_TYPE_GATHER_CONV_PARAM;
-                    req.layer_id = top->id;
-                    pcnn_comm_insert_req(model, queue, &req);
-                }
-                else if(top->type == LAYER_TYPE_FULL){
-                    pthread_mutex_lock(&queue->mut);
-                    while(queue->flag_reduce_p[top->id] == 1)
-                        pthread_cond_wait(&queue->cond, &queue->mut);
-                    pthread_mutex_unlock(&queue->mut);
-
-                    cblas_saxpby(top->local_weight_count, ratio, top->global_sumws, 1, 0, top->local_sumws, 1);
-                    cblas_saxpby(top->bias_size, ratio, top->global_sumbs, 1, 0, top->bias, 1);
 
                     req.type = COMM_TYPE_GATHER_W;
                     req.layer_id = top->id;
