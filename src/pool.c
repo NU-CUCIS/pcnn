@@ -19,8 +19,6 @@ static void pcnn_pool_max_ff(int op, int count, struct layer_t *bottom, struct l
     float max;
     float *activations = NULL;
 
-    memset(top->e, 0, sizeof(float) * count * top->num_neurons);
-
 #pragma omp parallel for private(j,k,l,m,n,row,col,max,maxrow,maxcol,offset,activations)
     for(i=0; i<top->output_channels; i++){
         for(j=0; j<count; j++){
@@ -90,8 +88,6 @@ static void pcnn_pool_avg_ff(int op, int count, struct layer_t *bottom, struct l
                       bottom->output_cols;
     float *input = NULL, *output = NULL;
 
-    memset(top->a, 0, sizeof(float) * count * top->num_neurons);
-
 #pragma omp parallel for private(j, k, l, m, n, o, p, \
                                  read_offset, write_offset, \
                                  sum, pool_size, \
@@ -137,6 +133,7 @@ void pcnn_pool_ff(int op, int count, struct layer_t *bottom, struct layer_t *top
     int r_off, c_off, area;
 
     memset(top->a, 0, sizeof(float) * count * top->num_neurons);
+    memset(top->e, 0, sizeof(float) * count * top->num_neurons);
 
     if(top->sub_type == 0)
         pcnn_pool_max_ff(op, count, bottom, top, param);
@@ -200,8 +197,6 @@ static void pcnn_pool_avg_bp(int count, struct layer_t *bottom, struct layer_t *
     const int tarea = top->output_depth * top->output_rows * top->output_cols;
     const int barea = bottom->output_depth * bottom->output_rows * bottom->output_cols;
     float *input = NULL, *output = NULL;
-
-    memset(bottom->e, 0, sizeof(float) * bottom->num_neurons * count);
 
 #pragma omp parallel for private(j, k, l, m, n, o, p, \
                                  read_offset, write_offset, \
