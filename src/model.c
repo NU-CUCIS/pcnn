@@ -128,14 +128,13 @@ static void pcnn_model_init_param_values(struct param_t *param, struct model_t *
 
             /* Initialize the parameters. */
             if(layer->type == LAYER_TYPE_CONV){
-                pcnn_util_gaussian(layer->filter_size, layer->mean, layer->std, layer->weight);
+                pcnn_util_gaussian(layer->id, layer->filter_size, layer->mean, layer->std, layer->weight);
                 for(j=0; j<layer->output_channels; j++){
                     layer->bias[j] = 0;
                 }
             }
             else if(layer->type == LAYER_TYPE_FULL){
-                layer->std = 0.01;
-                pcnn_util_gaussian(layer->filter_size, layer->mean, layer->std, layer->weight);
+                pcnn_util_gaussian(layer->id, layer->filter_size, layer->mean, layer->std, layer->weight);
                 for(j=0; j<layer->num_neurons; j++){
                     layer->bias[j] = 0;
                 }

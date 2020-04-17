@@ -75,11 +75,11 @@ int pcnn_util_shuffle(int *array, int num)
 	return 0;
 }
 
-void pcnn_util_gaussian(const int length, const float mean, const float sigma, float *data)
+void pcnn_util_gaussian(int seed, const int length, const float mean, const float sigma, float *data)
 {
 	int i;
 
-	srand(time(NULL));
+	srand(time(NULL) + seed);
 	boost::normal_distribution<float> nd(mean, sigma);
 	boost::mt19937 rgn(rand());
 	boost::variate_generator<boost::mt19937, boost::normal_distribution<float> > generator(rgn, nd);
