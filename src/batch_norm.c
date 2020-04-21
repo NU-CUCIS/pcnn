@@ -247,7 +247,7 @@ static void pcnn_bn_normalize_bp(struct layer_t *layer, struct model_t *model, s
     temp = param->col;
     mean = &param->col[feeder->local_batch_size * layer->num_neurons];
     memcpy(temp, layer->e, sizeof(float) * feeder->local_batch_size * layer->num_neurons);
-    cblas_saxpby(feeder->local_batch_size * layer->num_neurons, 1, temp, 1, 1, layer->a_norm, 1);
+    vsMul(feeder->local_batch_size * layer->num_neurons, temp, layer->a_norm, layer->e);
 
     /* Calculate the mean outputs. */
     a = layer->e;
@@ -399,7 +399,7 @@ static void pcnn_bn_scale_shift_bp(struct layer_t *layer, struct model_t *model,
     cblas_sgemv(CblasRowMajor, CblasNoTrans, m, n, alpha, a, lda, x, incx, beta, y, incy);
 
     /* 2. compute gamma gradients */
-    cblas_saxpby(layer->output_channels * area, 1, layer->e, 1, 1, layer->a_norm, 1);
+    vsMul(layer->output_channels * area, layer->e, layer->a_norm, param->col);
 
     a = param->col;
     x = param->multiplier;
