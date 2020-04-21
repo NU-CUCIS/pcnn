@@ -30,7 +30,7 @@
  * Sunwoo Lee, Ankit Agrawal, Prasanna Balaprakash, Alok Choudhary, and Wei-keng Liao,
  * MLHPC Workshop in SC18.
  */
-static void pcnn_ffbp_multistep_backprop_no_overlap(int imgidx, int op, struct feeder_t *feeder, struct model_t *model, struct param_t *param, struct comm_queue_t *queue)
+static void pcnn_ffbp_multistep_backprop_no_overlap(int op, struct feeder_t *feeder, struct model_t *model, struct param_t *param, struct comm_queue_t *queue)
 {
     int i=0,j=0;
     struct layer_t *top=NULL;
@@ -41,7 +41,7 @@ static void pcnn_ffbp_multistep_backprop_no_overlap(int imgidx, int op, struct f
      * The locally calculated training loss is accumulated until
      * the end of the epoch. */
     top = model->layers[model->num_layers-1];
-    pcnn_loss_bp(imgidx, top, model, param, feeder);
+    pcnn_loss_bp(top, model, param, feeder);
 
     /* The errors are propagated back, going through all the model layers. */
     for(i=model->num_layers-1; i>=0; i--){
@@ -135,7 +135,7 @@ static void pcnn_ffbp_multistep_backprop_no_overlap(int imgidx, int op, struct f
         bottom = top->bottom_layer >= 0 ? model->layers[top->bottom_layer] : NULL;
 
         if(top->type == LAYER_TYPE_CONV){
-            pcnn_conv_gradw(op, imgidx, feeder->local_batch_size, bottom, top, feeder, param);
+            pcnn_conv_gradw(op, feeder->local_batch_size, bottom, top, feeder, param);
             pcnn_conv_gradb(top, model, param, feeder);
         }
         else if(top->type == LAYER_TYPE_FULL){
@@ -198,7 +198,7 @@ static void pcnn_ffbp_multistep_backprop_no_overlap(int imgidx, int op, struct f
     }
 }
 
-static void pcnn_ffbp_multistep_backprop_overlap(int imgidx, int op, struct feeder_t *feeder, struct model_t *model, struct param_t *param, struct comm_queue_t *queue)
+static void pcnn_ffbp_multistep_backprop_overlap(int op, struct feeder_t *feeder, struct model_t *model, struct param_t *param, struct comm_queue_t *queue)
 {
     int i=0, j=0;
     struct comm_req_t req;
@@ -209,7 +209,7 @@ static void pcnn_ffbp_multistep_backprop_overlap(int imgidx, int op, struct feed
      * The locally calculated training loss is accumulated until
      * the end of the epoch. */
     top = model->layers[model->num_layers-1];
-    pcnn_loss_bp(imgidx, top, model, param, feeder);
+    pcnn_loss_bp(top, model, param, feeder);
 
     /* From the top to the bottom, compute the errors and propagate back. */
     for(i=model->num_layers - 1; i>=0; i--){
@@ -230,7 +230,7 @@ static void pcnn_ffbp_multistep_backprop_overlap(int imgidx, int op, struct feed
 
             /* Compute gradients at convolution layers. 
              * alltoall communications are initiated at each layer. */
-            pcnn_conv_gradw(op, imgidx, feeder->local_batch_size, bottom, top, feeder, param);
+            pcnn_conv_gradw(op, feeder->local_batch_size, bottom, top, feeder, param);
             pcnn_conv_gradb(top, model, param, feeder);
             if(queue->nproc > 1){
                 req.type = COMM_TYPE_ALL2ALL_G;
@@ -335,7 +335,7 @@ static void pcnn_ffbp_multistep_backprop_overlap(int imgidx, int op, struct feed
     }
 }
 
-void pcnn_ffbp_multistep_feedforward(int imgidx, int op, struct feeder_t *feeder, struct model_t *model, struct param_t *param, struct comm_queue_t *queue)
+void pcnn_ffbp_multistep_feedforward(int op, struct feeder_t *feeder, struct model_t *model, struct param_t *param, struct comm_queue_t *queue)
 {
     int i;
     struct layer_t *top=NULL;
@@ -359,7 +359,7 @@ void pcnn_ffbp_multistep_feedforward(int imgidx, int op, struct feeder_t *feeder
         }
 
         if(top->type == LAYER_TYPE_CONV){
-            pcnn_conv_ff(op, imgidx, feeder->local_batch_size, bottom, top, feeder, param);
+            pcnn_conv_ff(op, feeder->local_batch_size, bottom, top, feeder, param);
 
             if(top->batch_norm)
                 pcnn_bn_ff(op, top, model, param, feeder);
@@ -392,19 +392,19 @@ void pcnn_ffbp_multistep_feedforward(int imgidx, int op, struct feeder_t *feeder
     pcnn_loss_ff(top, model, feeder);
 
     /* Check the current accuracy. */
-    pcnn_util_evaluate(imgidx, model, param, feeder, queue);
+    pcnn_util_evaluate(model, param, feeder, queue);
 
     /* When running validation, we calculate loss here. */
     if(op == OPERATION_TYPE_VALIDATION)
-        pcnn_loss_bp(imgidx, top, model, param, feeder);
+        pcnn_loss_bp(top, model, param, feeder);
 }
 
-void pcnn_ffbp_multistep_backprop(int imgidx, int op, struct feeder_t *feeder, struct model_t *model, struct param_t *param, struct comm_queue_t *queue)
+void pcnn_ffbp_multistep_backprop(int op, struct feeder_t *feeder, struct model_t *model, struct param_t *param, struct comm_queue_t *queue)
 {
     if(model->overlap == 0)
-        pcnn_ffbp_multistep_backprop_no_overlap(imgidx, op, feeder, model, param, queue);
+        pcnn_ffbp_multistep_backprop_no_overlap(op, feeder, model, param, queue);
     else
-        pcnn_ffbp_multistep_backprop_overlap(imgidx, op, feeder, model, param, queue);
+        pcnn_ffbp_multistep_backprop_overlap(op, feeder, model, param, queue);
 }
 
 void pcnn_ffbp_multistep_update(struct model_t *model, struct param_t *param, struct feeder_t *feeder, struct comm_queue_t *queue)

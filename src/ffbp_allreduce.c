@@ -27,7 +27,7 @@
  * All the gradients are averaged across the workers using allreduce.
  * This module supports both overlap and non-overlap. */
 
-void pcnn_ffbp_allreduce_feedforward(int imgidx, int op, struct feeder_t *feeder, struct model_t *model, struct param_t *param, struct comm_queue_t *queue)
+void pcnn_ffbp_allreduce_feedforward(int op, struct feeder_t *feeder, struct model_t *model, struct param_t *param, struct comm_queue_t *queue)
 {
     int i;
     struct layer_t *top=NULL;
@@ -72,7 +72,7 @@ void pcnn_ffbp_allreduce_feedforward(int imgidx, int op, struct feeder_t *feeder
         }
 
         if(top->type == LAYER_TYPE_CONV){
-            pcnn_conv_ff(op, imgidx, feeder->local_batch_size, bottom, top, feeder, param);
+            pcnn_conv_ff(op, feeder->local_batch_size, bottom, top, feeder, param);
 
             if(top->batch_norm)
                 pcnn_bn_ff(op, top, model, param, feeder);
@@ -98,14 +98,14 @@ void pcnn_ffbp_allreduce_feedforward(int imgidx, int op, struct feeder_t *feeder
     pcnn_loss_ff(top, model, feeder);
 
     /* Check the current accuracy. */
-    pcnn_util_evaluate(imgidx, model, param, feeder, queue);
+    pcnn_util_evaluate(model, param, feeder, queue);
 
     /* When running validation, we calculate loss here. */
     if(op == OPERATION_TYPE_VALIDATION)
-        pcnn_loss_bp(imgidx, top, model, param, feeder);
+        pcnn_loss_bp(top, model, param, feeder);
 }
 
-void pcnn_ffbp_allreduce_backprop(int imgidx, int op, struct feeder_t *feeder, struct model_t * model, struct param_t *param, struct comm_queue_t *queue)
+void pcnn_ffbp_allreduce_backprop(int op, struct feeder_t *feeder, struct model_t * model, struct param_t *param, struct comm_queue_t *queue)
 {
     int i=0;
     struct layer_t *top=NULL;
@@ -116,7 +116,7 @@ void pcnn_ffbp_allreduce_backprop(int imgidx, int op, struct feeder_t *feeder, s
      * The locally calculated training loss is accumulated until
      * the end of the epoch. */
     top = model->layers[model->num_layers-1];
-    pcnn_loss_bp(imgidx, top, model, param, feeder);
+    pcnn_loss_bp(top, model, param, feeder);
 
     /* Backpropagate the errors going through the fully-connected layers 
     * and compute the gradients. */
@@ -149,7 +149,7 @@ void pcnn_ffbp_allreduce_backprop(int imgidx, int op, struct feeder_t *feeder, s
                 pcnn_bn_bp(top, model, param, feeder);
 
             pcnn_conv_bp(op, feeder->local_batch_size, bottom, top, param);
-            pcnn_conv_gradw(op, imgidx, feeder->local_batch_size, bottom, top, feeder, param);
+            pcnn_conv_gradw(op, feeder->local_batch_size, bottom, top, feeder, param);
             pcnn_conv_gradb(top, model, param, feeder);
 
             if(queue->nproc > 1 && model->overlap == 1){

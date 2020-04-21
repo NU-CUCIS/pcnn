@@ -250,8 +250,8 @@ struct model_t{
     int comm_pattern;
 
     /* function pointers for feedforward and backpropagation stages */
-    void (*feedforward)(int, int, struct feeder_t *, struct model_t *, struct param_t *, struct comm_queue_t *);
-    void (*backprop)(int, int, struct feeder_t *, struct model_t *, struct param_t *, struct comm_queue_t *);
+    void (*feedforward)(int, struct feeder_t *, struct model_t *, struct param_t *, struct comm_queue_t *);
+    void (*backprop)(int, struct feeder_t *, struct model_t *, struct param_t *, struct comm_queue_t *);
     void (*update)(struct model_t *, struct param_t *param, struct feeder_t *, struct comm_queue_t *);
 
     /* statistics */

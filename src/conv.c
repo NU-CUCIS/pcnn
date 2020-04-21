@@ -17,9 +17,9 @@
 #include "feeder.h"
 #include "relu.h"
 
-int pcnn_conv_ff(int op, int imgidx, int count, 
-				struct layer_t *bottom, struct layer_t *top, 
-				struct feeder_t *feeder, struct param_t *param)
+int pcnn_conv_ff(int op, int count, 
+                 struct layer_t *bottom, struct layer_t *top, 
+                 struct feeder_t *feeder, struct param_t *param)
 {
     int i, j, k, l, m, area;
     int rows, cols;
@@ -98,8 +98,8 @@ int pcnn_conv_ff(int op, int imgidx, int count,
 }
 
 int pcnn_conv_bp(int op, int count,
-				struct layer_t *bottom, struct layer_t *top,
-				struct param_t *param)
+                 struct layer_t *bottom, struct layer_t *top,
+                 struct param_t *param)
 {
     int M,K,N,lda,ldb,ldc;
     int rows, cols;
@@ -135,9 +135,9 @@ int pcnn_conv_bp(int op, int count,
     return 0;
 }
 
-void pcnn_conv_gradw(int op, int imgidx, int count, 
-				struct layer_t *bottom, struct layer_t *top, 
-				struct feeder_t *feeder, struct param_t *param)
+void pcnn_conv_gradw(int op, int count, 
+                     struct layer_t *bottom, struct layer_t *top, 
+                     struct feeder_t *feeder, struct param_t *param)
 {
     int M,N,K,lda,ldb,ldc;
     float *A, *B, *C;

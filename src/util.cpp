@@ -105,7 +105,7 @@ float pcnn_util_calc_PSNR(float *image1, float *image2, int num_pixels)
     return PSNR;
 }
 
-void pcnn_util_evaluate(int imgidx, struct model_t *model, struct param_t *param, struct feeder_t *feeder, struct comm_queue_t *queue)
+void pcnn_util_evaluate(struct model_t *model, struct param_t *param, struct feeder_t *feeder, struct comm_queue_t *queue)
 {
     int i,j,k,l;
     int area;
@@ -133,7 +133,7 @@ void pcnn_util_evaluate(int imgidx, struct model_t *model, struct param_t *param
                     }
                 }
             }
-            sum += pcnn_util_calc_PSNR(image, &feeder->label[(imgidx + i) * feeder->label_size], feeder->label_size);
+            sum += pcnn_util_calc_PSNR(image, &feeder->label[i * feeder->label_size], feeder->label_size);
         }
         param->custom_output += (sum / feeder->batch_size);
         free(image);
@@ -149,7 +149,7 @@ void pcnn_util_evaluate(int imgidx, struct model_t *model, struct param_t *param
                         max_neuron = j;
                     }
                 }
-                if(feeder->label[(imgidx + i) * feeder->label_size + max_neuron])
+                if(feeder->label[i * feeder->label_size + max_neuron])
                     param->num_corrects += 1;
             }
         }

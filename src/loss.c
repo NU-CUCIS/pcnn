@@ -11,10 +11,10 @@
 
 /* static functions */
 static void pcnn_softmax_ff(struct layer_t *layer, struct model_t *model, struct feeder_t *feeder);
-static void pcnn_softmax_loss(int imgidx, struct layer_t *layer, struct model_t *model, struct param_t *param, struct feeder_t *feeder);
-static void pcnn_softmax_bp(int imgidx, struct layer_t *layer, struct model_t *model, struct param_t *param, struct feeder_t *feeder);
-static void pcnn_mae_bp(int imgidx, struct layer_t *layer, struct model_t *model, struct param_t *param, struct feeder_t *feeder);
-static void pcnn_mse_bp(int imgidx, struct layer_t *layer, struct model_t *model, struct param_t *param, struct feeder_t *feeder);
+static void pcnn_softmax_loss(struct layer_t *layer, struct model_t *model, struct param_t *param, struct feeder_t *feeder);
+static void pcnn_softmax_bp(struct layer_t *layer, struct model_t *model, struct param_t *param, struct feeder_t *feeder);
+static void pcnn_mae_bp(struct layer_t *layer, struct model_t *model, struct param_t *param, struct feeder_t *feeder);
+static void pcnn_mse_bp(struct layer_t *layer, struct model_t *model, struct param_t *param, struct feeder_t *feeder);
 
 void pcnn_loss_ff(struct layer_t *layer, struct model_t *model, struct feeder_t *feeder)
 {
@@ -24,14 +24,14 @@ void pcnn_loss_ff(struct layer_t *layer, struct model_t *model, struct feeder_t 
     /* Other loss functions do not have any computation at feed-forward. */
 }
 
-void pcnn_loss_bp(int imgidx, struct layer_t *layer, struct model_t *model, struct param_t *param, struct feeder_t *feeder)
+void pcnn_loss_bp(struct layer_t *layer, struct model_t *model, struct param_t *param, struct feeder_t *feeder)
 {
     if(layer->loss_type == LOSS_TYPE_SOFTMAX)
-        pcnn_softmax_bp(imgidx, layer, model, param, feeder);
+        pcnn_softmax_bp(layer, model, param, feeder);
     else if(layer->loss_type == LOSS_TYPE_MAE)
-        pcnn_mae_bp(imgidx, layer, model, param, feeder);
+        pcnn_mae_bp(layer, model, param, feeder);
     else if(layer->loss_type == LOSS_TYPE_MSE)
-        pcnn_mse_bp(imgidx, layer, model, param, feeder);
+        pcnn_mse_bp(layer, model, param, feeder);
     else
         printf("[%s][%d] loss function is called for non-output layer.\n", __FUNCTION__, __LINE__);
 }
@@ -65,7 +65,7 @@ static void pcnn_softmax_ff(struct layer_t *layer, struct model_t *model, struct
     }
 }
 
-static void pcnn_softmax_loss(int imgidx, struct layer_t *layer, struct model_t *model, struct param_t *param, struct feeder_t *feeder)
+static void pcnn_softmax_loss(struct layer_t *layer, struct model_t *model, struct param_t *param, struct feeder_t *feeder)
 {
     int i = 0, j = 0;
     int max = 0, label_offset = 0;
@@ -73,7 +73,7 @@ static void pcnn_softmax_loss(int imgidx, struct layer_t *layer, struct model_t 
     
 #pragma omp parallel for private(j, max, label_offset) reduction(+:loss)
     for(i=0; i<feeder->local_batch_size; i++){
-        label_offset = (imgidx + i) * feeder->label_size;
+        label_offset = i * feeder->label_size;
         for(j=0; j<layer->num_neurons; j++){
             if(feeder->label[label_offset++] == 1)
                 break;
@@ -84,24 +84,24 @@ static void pcnn_softmax_loss(int imgidx, struct layer_t *layer, struct model_t 
     param->local_loss += (loss / feeder->local_batch_size);
 }
 
-static void pcnn_softmax_bp(int imgidx, struct layer_t *layer, struct model_t *model, struct param_t *param, struct feeder_t *feeder)
+static void pcnn_softmax_bp(struct layer_t *layer, struct model_t *model, struct param_t *param, struct feeder_t *feeder)
 {
     int i = 0, j = 0;
     int offset = 0, label_offset = 0;
 
 #pragma omp parallel for private(j, offset, label_offset)
     for(i=0; i<feeder->local_batch_size; i++){
-        label_offset = (imgidx + i) * layer->num_neurons;
+        label_offset = i * layer->num_neurons;
         for(j=0; j<layer->num_neurons; j++){
             offset = j * feeder->local_batch_size + i;
             layer->e[offset] = layer->a[offset] - feeder->label[label_offset+j];
         }
     }
 
-    pcnn_softmax_loss(imgidx, layer, model, param, feeder);
+    pcnn_softmax_loss(layer, model, param, feeder);
 }
 
-static void pcnn_mse_bp(int imgidx, struct layer_t *layer, struct model_t *model, struct param_t *param, struct feeder_t *feeder)
+static void pcnn_mse_bp(struct layer_t *layer, struct model_t *model, struct param_t *param, struct feeder_t *feeder)
 {
     int i, j, k, l;
     int area;
@@ -114,7 +114,7 @@ static void pcnn_mse_bp(int imgidx, struct layer_t *layer, struct model_t *model
 #pragma omp parallel for private(j, k, l, src_off, dst_off) reduction(+:sum)
         for(i=0; i<layer->output_channels; i++){
             for(j=0; j<feeder->local_batch_size; j++){
-                src_off = ((imgidx + j) * layer->output_channels + i) * area;
+                src_off = (j * layer->output_channels + i) * area;
                 dst_off = (i * feeder->local_batch_size + j) * area;
                 for(k=0; k<layer->output_rows; k++){
                     for(l=0; l<layer->output_cols; l++){
@@ -130,7 +130,7 @@ static void pcnn_mse_bp(int imgidx, struct layer_t *layer, struct model_t *model
     else if(layer->type == LAYER_TYPE_FULL){
 #pragma omp parallel for private(j, src_off, dst_off) reduction(+:sum)
         for(i=0; i<feeder->local_batch_size; i++){
-            src_off = (imgidx + i) * layer->num_neurons;
+            src_off = i * layer->num_neurons;
             for(j=0; j<layer->num_neurons; j++){
                 dst_off = j * feeder->local_batch_size + i;
                 layer->e[dst_off] = layer->a[dst_off] - feeder->label[src_off++];
@@ -141,7 +141,7 @@ static void pcnn_mse_bp(int imgidx, struct layer_t *layer, struct model_t *model
     param->local_loss += (sum / (layer->num_neurons * feeder->local_batch_size));
 }
 
-static void pcnn_mae_bp(int imgidx, struct layer_t *layer, struct model_t *model, struct param_t *param, struct feeder_t *feeder)
+static void pcnn_mae_bp(struct layer_t *layer, struct model_t *model, struct param_t *param, struct feeder_t *feeder)
 {
     int i, j, k, l;
     int area;
@@ -154,7 +154,7 @@ static void pcnn_mae_bp(int imgidx, struct layer_t *layer, struct model_t *model
 #pragma omp parallel for private(j, k, l, src_off, dst_off) reduction(+:sum)
         for(i=0; i<layer->output_channels; i++){
             for(j=0; j<feeder->local_batch_size; j++){
-                src_off = ((imgidx + j) * layer->output_channels + i) * area;
+                src_off = (j * layer->output_channels + i) * area;
                 dst_off = (i * feeder->local_batch_size + j) * area;
                 for(k=0; k<layer->output_rows; k++){
                     for(l=0; l<layer->output_cols; l++){
@@ -176,7 +176,7 @@ static void pcnn_mae_bp(int imgidx, struct layer_t *layer, struct model_t *model
     else if(layer->type == LAYER_TYPE_FULL){
 #pragma omp parallel for private(j, src_off, dst_off) reduction(+:sum)
         for(i=0; i<feeder->local_batch_size; i++){
-            src_off = (imgidx + i) * layer->num_neurons;
+            src_off = i * layer->num_neurons;
             for(j=0; j<layer->num_neurons; j++){
                 dst_off = j * feeder->local_batch_size + i;
                 if(layer->a[dst_off] > feeder->label[src_off])

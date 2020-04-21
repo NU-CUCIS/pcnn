@@ -28,18 +28,18 @@
 #include "ffbp_multistep.h"
 
 /* static function declarations */
-static void pcnn_frame_process_batch(int imgidx, struct feeder_t *feeder, struct model_t *model, struct param_t *param, struct comm_queue_t *queue);
+static void pcnn_frame_process_batch(struct feeder_t *feeder, struct model_t *model, struct param_t *param, struct comm_queue_t *queue);
 static void pcnn_frame_test(struct feeder_t *feeder, struct model_t *model, struct param_t *param, struct comm_queue_t *queue);
 static int pcnn_frame_train(struct feeder_t *feeder, struct model_t *model, struct param_t *param, struct comm_queue_t *queue);
 static void *pcnn_frame_thread(void *ptr);
 
-static void pcnn_frame_process_batch(int imgidx, struct feeder_t *feeder, struct model_t *model, struct param_t *param, struct comm_queue_t *queue)
+static void pcnn_frame_process_batch(struct feeder_t *feeder, struct model_t *model, struct param_t *param, struct comm_queue_t *queue)
 {
     /* 1. Feed-forward stage. */
-    (*model->feedforward)(imgidx, OPERATION_TYPE_TRAINING, feeder, model, param, queue);
+    (*model->feedforward)(OPERATION_TYPE_TRAINING, feeder, model, param, queue);
 
     /* 2. Backpropagation stage. */
-    (*model->backprop)(imgidx, OPERATION_TYPE_TRAINING, feeder, model, param, queue);
+    (*model->backprop)(OPERATION_TYPE_TRAINING, feeder, model, param, queue);
 
     /* 3. Update the model parameters. */
     (*model->update)(model, param, feeder, queue);
@@ -61,7 +61,7 @@ static void pcnn_frame_test(struct feeder_t *feeder, struct model_t *model, stru
     while((param->current_test_index + feeder->batch_size) < feeder->num_test_images){
         pcnn_feeder_get_minibatch(1, param->current_test_index, model, feeder, queue);
         pcnn_feeder_subtract_mean_image(feeder);
-        (*model->feedforward)(0, OPERATION_TYPE_VALIDATION, feeder, model, param, queue);
+        (*model->feedforward)(OPERATION_TYPE_VALIDATION, feeder, model, param, queue);
         param->current_test_index += (feeder->batch_size * queue->num_groups);
         param->num_processed_batches++;
         
@@ -166,7 +166,7 @@ static int pcnn_frame_train(struct feeder_t *feeder, struct model_t *model, stru
 
             pcnn_feeder_get_minibatch(0, param->current_index, model, feeder, queue);
             pcnn_feeder_subtract_mean_image(feeder);
-            pcnn_frame_process_batch(0, feeder, model, param, queue);
+            pcnn_frame_process_batch(feeder, model, param, queue);
             param->current_index += (feeder->batch_size * queue->num_groups);
             param->num_processed_batches++;
 
