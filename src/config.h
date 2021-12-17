@@ -44,11 +44,13 @@
  * COMM_PATTERN: 
  *     0: allreduce
  *     1: multi-step communications
+ *     2: lazy update
  * OVERLAP
  *     0: no overlap
  *     1: overlap communication with computation */
-#define COMM_PATTERN 1
+#define COMM_PATTERN 2
 #define OVERLAP 1
+#define NUM_LAZY_LAYERS 8
 /********** Model settings ********************/
 #define MNIST_MODEL 0
 #define CIFAR10_MODEL 0

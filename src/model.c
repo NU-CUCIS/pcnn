@@ -173,8 +173,10 @@ struct model_t *pcnn_model_init(int num_train_images, int num_epochs, int mode, 
     model->upsample_ratio = UPSAMPLE_RATIO;
     model->eps = EPS_FACTOR;
     model->moving_average_fraction = MOVING_AVERAGE_FRACTION;
+    model->num_lazy_layers = (model->comm_pattern == 2) ? NUM_LAZY_LAYERS : 0;
     model->checkpoint_interval = CHECKPOINT_INTERVAL;
     model->checkpoint_path = (char *)malloc(sizeof(char) * (strlen(CHECKPOINT_PATH) + 1));
+    model->b = NUM_LAZY_LAYERS;
     sprintf(model->checkpoint_path, "%s", (CHECKPOINT_PATH));
     model->param_size = 0;
     model->intermediate_size = 0;
@@ -199,6 +201,7 @@ struct model_t *pcnn_model_init(int num_train_images, int num_epochs, int mode, 
         printf("%-40s: %f\n", "Learning rate" , model->learning_rate);
         printf("%-40s: %f\n", "Learning rate decay factor" , model->decay_factor);
         printf("%-40s: %d\n", "Learning rate decay steps" , model->decay_steps);
+        printf("%-40s: %d\n", "Number of layers with lazy update" , model->num_lazy_layers);
     }
     return model;
 }
@@ -318,7 +321,7 @@ void pcnn_model_init_layer(struct model_t *model, struct feeder_t *feeder, struc
         layer->output_cols = 1;
         layer->output_rows = features->filter_rows; /* In a fully-connected layer, filter_rows is the number of neurons. */
     }
-    else if(features->type == LAYER_TYPE_UPSAMPLE){
+    else if(features->type == LAYER_TYPE_UPSAMPLE){/* NOTE: upsampling layer assumes the input and output are 2-dimensional. */
         layer->output_depth = 1;
         layer->output_rows = layer->input_rows * model->upsample_ratio;
         layer->output_cols = layer->input_cols * model->upsample_ratio;
@@ -504,6 +507,9 @@ struct param_t *pcnn_model_init_param(struct model_t *model, struct feeder_t *fe
     param->num_trained_epochs = 0;
     param->beta1_decay = 1.f;
     param->beta2_decay = 1.f;
+    param->num_lazy_updates = 0;
+    param->num_accumulated = 0;
+    param->interval = 1;
 
     /* Allocate memory spaces for parameters and gradients. 
      * Here, we need at least four sets of full-sized memory space:
@@ -589,6 +595,32 @@ struct param_t *pcnn_model_init_param(struct model_t *model, struct feeder_t *fe
                 layer->v_sumbs = &param->v_gradient_sums[offset];
             }
             offset += layer->num_neurons;
+        }
+    }
+
+    /* lazy update */
+    accum_size = 0;
+    for(i=0; i<model->num_lazy_layers; i++){
+        layer = model->layers[i];
+        if(layer->type == LAYER_TYPE_CONV){
+            accum_size += layer->num_gradients;
+            layer->sub_type = 1;
+        }
+    }
+
+    if(accum_size > 0){
+        param->local_accum = (float *)calloc(accum_size, sizeof(float));
+        param->global_accum = (float *)calloc(accum_size, sizeof(float));
+        param->total_accum_size = accum_size;
+    }
+
+    offset = 0;
+    for(i=0; i<model->num_lazy_layers; i++){
+        layer = model->layers[i];
+        if(layer->type == LAYER_TYPE_CONV){
+            layer->local_accum = &param->local_accum[offset];
+            layer->global_accum = &param->global_accum[offset];
+            offset += layer->num_gradients;
         }
     }
 
@@ -847,6 +879,10 @@ void pcnn_model_free_param(struct model_t *model, struct param_t *param)
     }
 
     if(param != NULL){
+        if(param->local_accum != NULL)
+            free(param->local_accum);
+        if(param->global_accum != NULL)
+            free(param->global_accum);
         if(param->prev_gradient_sums != NULL)
             free(param->prev_gradient_sums);
         if(param->m_gradient_sums != NULL)
@@ -1256,4 +1292,108 @@ void pcnn_model_put_momentum_together(struct model_t *model, struct param_t *par
         else
             continue;
     }
+}
+
+void pcnn_model_update_interval_layer(int id, struct model_t *model, struct param_t *param, struct comm_queue_t *queue)
+{
+    int i;
+    struct layer_t *layer;
+    float var, norm_f, norm_g;
+    float *accum, *grads;
+    int angle, magnitude;
+
+    angle = 0;
+    magnitude = 0;
+
+    layer = model->layers[id];
+    if(layer->type != LAYER_TYPE_CONV || layer->sub_type != 1){
+        printf("[%s][%d] Invalid bottom layer for lazy update interval update!\n", __FUNCTION__, __LINE__);
+        return;
+    }
+
+    accum = (queue->nproc > 1) ? layer->global_accum : layer->local_accum;
+    grads = (queue->nproc > 1) ? layer->global_sumws : layer->local_sumws;
+
+    var = 0;
+#pragma omp parallel for reduction(+:var)
+    for(i=0; i<layer->num_gradients; i++){
+        var += powf(grads[i] - accum[i], 2);
+    }
+
+    norm_f = cblas_snrm2(layer->num_gradients, grads, 1);
+    norm_f = powf(norm_f, 2);
+
+    norm_g = cblas_snrm2(layer->num_gradients, accum, 1);
+    norm_g = powf(norm_g, 2);
+
+    if((var + norm_f) <= norm_g)
+        angle = 1;
+
+    if(norm_f * param->num_accumulated <= norm_g)
+        magnitude = 1;
+
+    if(angle == 1 && magnitude == 1)
+        param->interval++;
+    else if (angle == 0 && magnitude == 0)
+        param->interval = (param->interval == 1) ? 1 : param->interval - 1;
+
+#if DEBUG
+    printf("var: %f norm_f: %f norm_g: %f interval: %d\n", var, norm_f, norm_g, param->interval);
+
+    if(queue->rank == 0){
+        FILE *fd;
+        fd = fopen("lazy_interval.txt", "a");
+        fprintf(fd, "%d\n", param->interval);
+        fclose(fd);
+    }
+#endif
+}
+
+void pcnn_model_update_interval_model(struct model_t *model, struct param_t *param, struct comm_queue_t *queue)
+{
+    int i,j;
+    int num_violated;
+    struct layer_t *layer;
+    float var, norm_f, norm_g;
+    float *accum, *grads;
+
+    num_violated = 0;
+    for(i=0; i<model->b; i++){
+        layer = model->layers[i];
+        if(layer->type != LAYER_TYPE_CONV || layer->sub_type != 1)
+            continue;
+
+        accum = (queue->nproc > 1) ? layer->global_accum : layer->local_accum;
+        grads = (queue->nproc > 1) ? layer->global_sumws : layer->local_sumws;
+
+        var = 0;
+#pragma omp parallel for reduction(+:var)
+        for(j=0; j<layer->num_gradients; j++)
+            var += powf(grads[j] - accum[j], 2);
+
+        norm_f = cblas_snrm2(layer->num_gradients, grads, 1);
+        norm_f = powf(norm_f, 2);
+
+        norm_g = cblas_snrm2(layer->num_gradients, accum, 1);
+        norm_g = powf(norm_g, 2);
+
+        if((var + norm_f) > norm_g)
+            num_violated++;
+    }
+
+    if(num_violated == 0)
+        param->interval++;
+    else if(num_violated > 0.5 * model->b)
+        param->interval = (param->interval == 1) ? 1 : param->interval - 1;
+
+#if DEBUG
+    printf("num_violated: %d model->b: %d param->interval: %d\n", num_violated, model->b, param->interval);
+
+    if(queue->rank == 0){
+        FILE *fd;
+        fd = fopen("lazy_interval.txt", "a");
+        fprintf(fd, "%d\n", param->interval);
+        fclose(fd);
+    }
+#endif
 }

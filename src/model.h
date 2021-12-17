@@ -77,6 +77,10 @@ struct layer_t{
      * We use MPI_Alltoallv and MPI_Allgatherv for communications. */
     int aligned_weight;
 
+    /* lazy update */
+    float *local_accum;
+    float *global_accum;
+
     /* pointers */
     int *sdispls_weight;
     int *rdispls_weight;
@@ -178,6 +182,14 @@ struct param_t{
     float global_loss;
     float epoch_loss;
 
+    /* lazy update */
+    float *local_accum;
+    float *global_accum;
+    int total_accum_size;
+    int num_lazy_updates;
+    int num_accumulated;
+    int interval;
+
     /* batch normalization */
     float *multiplier;
     float *sums;
@@ -226,6 +238,9 @@ struct model_t{
 
     float upsample_ratio;
 
+    /* lazy update */
+    int b;
+
     /* SGD */
     float momentum;
     float weight_decay;
@@ -248,6 +263,7 @@ struct model_t{
     int optimizer;
     int overlap;
     int comm_pattern;
+    int num_lazy_layers;
 
     /* function pointers for feedforward and backpropagation stages */
     void (*feedforward)(int, struct feeder_t *, struct model_t *, struct param_t *, struct comm_queue_t *);

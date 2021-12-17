@@ -134,6 +134,8 @@ int pcnn_comm_insert_req(struct model_t *model, struct comm_queue_t *queue, stru
         queue->flag_reduce_g[req->layer_id] = 1;
     else if(req->type == COMM_TYPE_REDUCE_P)
         queue->flag_reduce_p[req->layer_id] = 1;
+    else if(req->type == COMM_TYPE_REDUCE_AG)
+        queue->flag_reduce_ag = 1;
     else if(req->type == COMM_TYPE_REDUCE_L)
         queue->flag_reduce_l = 1;
     else if(req->type == COMM_TYPE_REDUCE_CONV_PARAM)
@@ -309,13 +311,26 @@ void *pcnn_comm_thread(void *ptr)
             pthread_mutex_unlock(&queue->mut);
             pthread_cond_signal(&queue->cond);
         }
+        else if(type == COMM_TYPE_REDUCE_AG){
+            MPI_Allreduce(param->local_accum,
+                          param->global_accum,
+                          param->total_accum_size,
+                          MPI_FLOAT, 
+                          MPI_SUM, 
+                          queue->comm);
+
+            pthread_mutex_lock(&queue->mut);
+            queue->flag_reduce_ag = 0;
+            pthread_mutex_unlock(&queue->mut);
+            pthread_cond_signal(&queue->cond);
+        }
         else if(type == COMM_TYPE_REDUCE_L){
             MPI_Allreduce(&param->local_loss,
                           &param->global_loss,
                           1,
                           MPI_FLOAT, 
                           MPI_SUM, 
-                          queue->comm);
+                          queue->world);
 
             pthread_mutex_lock(&queue->mut);
             queue->flag_reduce_l = 0;

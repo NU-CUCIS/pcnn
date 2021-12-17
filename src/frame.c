@@ -26,6 +26,7 @@
 #include "residual.h"
 #include "ffbp_allreduce.h"
 #include "ffbp_multistep.h"
+#include "ffbp_lazyupdate.h"
 
 /* static function declarations */
 static void pcnn_frame_process_batch(struct feeder_t *feeder, struct model_t *model, struct param_t *param, struct comm_queue_t *queue);
@@ -141,6 +142,7 @@ static int pcnn_frame_train(struct feeder_t *feeder, struct model_t *model, stru
         param->num_corrects = 0;
         param->custom_output = 0.0f;
         param->local_loss = 0;
+        param->num_lazy_updates = 0;
         param->num_processed_batches = 0;
 
         if(queue->group_id == 0 && queue->rank == 0)
@@ -225,6 +227,11 @@ static int pcnn_frame_train(struct feeder_t *feeder, struct model_t *model, stru
             fd = fopen(name, "a");
             fprintf(fd, "%f\n", param->epoch_loss);
             fclose(fd);
+
+            sprintf(name, "lazyupdates-g%d.txt", queue->group_id);
+            fd = fopen(name, "a");
+            fprintf(fd, "%d\n", param->num_lazy_updates);
+            fclose(fd);
         }
 
         if(model->test_per_epoch != 0)
@@ -276,6 +283,11 @@ int pcnn_frame_run(struct feeder_t *feeder, struct model_t *model, struct param_
         model->feedforward = &pcnn_ffbp_multistep_feedforward;
         model->backprop = &pcnn_ffbp_multistep_backprop;
         model->update = &pcnn_ffbp_multistep_update;
+    }
+    else if(model->comm_pattern == 2){
+        model->feedforward = &pcnn_ffbp_lazy_feedforward;
+        model->backprop = &pcnn_ffbp_lazy_backprop;
+        model->update = &pcnn_ffbp_lazy_update;
     }
     else{
         printf("[%s][%d] communicaiton pattern is not set correctly.\n", __FUNCTION__, __LINE__);
