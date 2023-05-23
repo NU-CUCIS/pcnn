@@ -33,5 +33,6 @@ In order to maximize the degree of overlap, the gradients are averaged across al
 This material is based upon work supported by the U.S. Department of Energy,
 Office of Science, Office of Advanced Scientific Computing Research, Scientific
 Discovery through Advanced Computing ([SciDAC](https://www.scidac.gov)) program,
-[RAPIDS Institute](https://rapids.lbl.gov). Partial support is also acknowledged 
-from NIST CHiMaD. 
+[RAPIDS Institute](https://rapids.lbl.gov).
+This work is also supported in part by the DOE awards, United States DE-SC0014330 and DE-SC0019358.
+Partial support is also acknowledged from NIST CHiMaD. 
